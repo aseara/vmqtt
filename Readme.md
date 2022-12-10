@@ -1,0 +1,1 @@
+This repository using vert.x implement a mqtt server. It can use all cores and check auth info supportint by redis, push topic message to kafka.
