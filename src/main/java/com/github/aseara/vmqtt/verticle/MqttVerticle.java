@@ -1,18 +1,20 @@
 package com.github.aseara.vmqtt.verticle;
 
+import com.github.aseara.vmqtt.mqtt.MqttServer;
+import com.github.aseara.vmqtt.mqtt.MqttTopicSubscription;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttSubAckReasonCode;
 import io.netty.handler.codec.mqtt.MqttProperties;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
-import io.vertx.mqtt.MqttServer;
-import io.vertx.mqtt.MqttTopicSubscription;
-import io.vertx.mqtt.messages.codes.MqttSubAckReasonCode;
+import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
 @SuppressWarnings("unused")
+@Slf4j
 public class MqttVerticle extends AbstractVerticle {
 
     private MqttServer mqttServer;
@@ -23,18 +25,18 @@ public class MqttVerticle extends AbstractVerticle {
 
         mqttServer.endpointHandler(endpoint -> {
             // shows main connect info
-            System.out.println("MQTT client [" + endpoint.clientIdentifier() + "] request to connect, clean session = " + endpoint.isCleanSession());
+            log.info("MQTT client [" + endpoint.clientIdentifier() + "] request to connect, clean session = " + endpoint.isCleanSession());
 
             if (endpoint.auth() != null) {
-                System.out.println("[username = " + endpoint.auth().getUsername() + ", password = " + endpoint.auth().getPassword() + "]");
+                log.info("[username = " + endpoint.auth().getUsername() + ", password = " + endpoint.auth().getPassword() + "]");
             }
-            System.out.println("[properties = " + endpoint.connectProperties() + "]");
+            log.info("[properties = " + endpoint.connectProperties() + "]");
             if (endpoint.will() != null) {
                 System.out.println("[will topic = " + endpoint.will().getWillTopic() + " msg = " + new String(endpoint.will().getWillMessageBytes()) +
                         " QoS = " + endpoint.will().getWillQos() + " isRetain = " + endpoint.will().isWillRetain() + "]");
             }
 
-            System.out.println("[keep alive timeout = " + endpoint.keepAliveTimeSeconds() + "]");
+            log.info("[keep alive timeout = " + endpoint.keepAliveTimeSeconds() + "]");
 
             // accept connection from the remote client
             endpoint.accept(false);
@@ -62,7 +64,7 @@ public class MqttVerticle extends AbstractVerticle {
 
             endpoint.publishHandler(message -> {
 
-                System.out.println("Just received message [" + message.payload().toString(Charset.defaultCharset()) + "] with QoS [" + message.qosLevel() + "]");
+                log.info("Just received message [" + message.payload().toString(Charset.defaultCharset()) + "] with QoS [" + message.qosLevel() + "]");
 
                 if (message.qosLevel() == MqttQoS.AT_LEAST_ONCE) {
                     endpoint.publishAcknowledge(message.messageId());
@@ -74,7 +76,7 @@ public class MqttVerticle extends AbstractVerticle {
 
         }).listen(ar -> {
             if (ar.succeeded()) {
-                System.out.println("MQTT server is listening on port " + ar.result().actualPort());
+                log.info("MQTT server is listening on port " + ar.result().actualPort());
                 startPromise.complete();
             } else {
                 startPromise.fail(ar.cause());
