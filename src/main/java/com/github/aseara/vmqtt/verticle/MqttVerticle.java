@@ -1,5 +1,6 @@
 package com.github.aseara.vmqtt.verticle;
 
+import com.github.aseara.vmqtt.conf.MqttConfig;
 import com.github.aseara.vmqtt.mqtt.MqttServer;
 import com.github.aseara.vmqtt.mqtt.MqttTopicSubscription;
 import com.github.aseara.vmqtt.mqtt.messages.codes.MqttSubAckReasonCode;
@@ -17,7 +18,13 @@ import java.util.List;
 @Slf4j
 public class MqttVerticle extends AbstractVerticle {
 
+    private MqttConfig config;
+
     private MqttServer mqttServer;
+
+    public MqttVerticle(MqttConfig config) {
+        this.config = config;
+    }
 
     @Override
     public void start(Promise<Void> startPromise) {

@@ -1,6 +1,7 @@
 package com.github.aseara.vmqtt;
 
 import com.github.aseara.vmqtt.conf.MqttConfig;
+import com.github.aseara.vmqtt.verticle.MqttVerticle;
 import io.netty.util.internal.StringUtil;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
@@ -87,9 +88,9 @@ public class MqttLauncher {
     private static void start(MqttConfig config) {
         Vertx vertx = Vertx.vertx();
         DeploymentOptions options = new DeploymentOptions()
-                .setInstances(Runtime.getRuntime().availableProcessors() * 2)
                 .setConfig(JsonObject.mapFrom(config));
-        vertx.deployVerticle("com.github.aseara.vmqtt.verticle.MqttVerticle", options);
+        MqttVerticle verticle = new MqttVerticle(config);
+        vertx.deployVerticle(verticle, options);
     }
 
 }
