@@ -77,7 +77,7 @@ public class MqttLauncher {
             }
 
             try (InputStream input = in) {
-                return yaml.load(input);
+                return yaml.loadAs(input, MqttConfig.class);
             }
         } catch (IOException e) {
             log.error("can not load config file: {}", configPath, e);
@@ -90,7 +90,15 @@ public class MqttLauncher {
         DeploymentOptions options = new DeploymentOptions()
                 .setConfig(JsonObject.mapFrom(config));
         MqttVerticle verticle = new MqttVerticle(config);
-        vertx.deployVerticle(verticle, options);
+        vertx.deployVerticle(verticle, options).onComplete(ar -> {
+            if (ar.succeeded()) {
+                log.info("mqtt verticle deploy succeed.");
+            } else {
+                log.error("mqtt verticle deploy error: ", ar.cause());
+            }
+        });
+
+        vertx.exceptionHandler(t -> log.error("exec error: ", t));
     }
 
 }
