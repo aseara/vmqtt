@@ -159,6 +159,11 @@ public interface MqttEndpoint {
    */
   boolean isConnected();
 
+  /**
+   * @return if the close method has been invoked
+   */
+  boolean isClosed();
+
 
   /**
    * @return MQTT properties of the CONNECT message

@@ -202,6 +202,12 @@ public class MqttEndpointImpl implements MqttEndpoint {
     }
   }
 
+  public boolean isClosed() {
+    synchronized (this.conn) {
+      return this.isClosed;
+    }
+  }
+
   @Override
   public MqttProperties connectProperties() {
     return this.connectProperties;

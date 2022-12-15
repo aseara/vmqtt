@@ -1,27 +1,30 @@
-package com.github.aseara.vmqtt.pubsub;
+package com.github.aseara.vmqtt.processor.protocol;
 
 import com.github.aseara.vmqtt.message.SubTrie;
 import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
 import com.github.aseara.vmqtt.mqtt.messages.MqttPublishMessage;
+import com.github.aseara.vmqtt.processor.RequestProcessor;
 import com.github.aseara.vmqtt.storage.MemoryStorage;
 import io.netty.handler.codec.mqtt.MqttQoS;
+import io.vertx.core.Future;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.Charset;
 
 @Slf4j
-public class PubSubService {
+public class PublishProcessor implements RequestProcessor<MqttPublishMessage> {
 
     private final MemoryStorage storage;
 
     private final SubTrie subscriptions;
 
-    public PubSubService(SubTrie subscriptions, MemoryStorage storage) {
-        this.subscriptions = subscriptions;
+    public PublishProcessor(MemoryStorage storage, SubTrie subscriptions) {
         this.storage = storage;
+        this.subscriptions = subscriptions;
     }
 
-    public void onPublish(MqttEndpoint endpoint, MqttPublishMessage message) {
+    @Override
+    public Future<MqttEndpoint> processRequest(MqttEndpoint endpoint, MqttPublishMessage message) {
         log.info("Just received message [" + message.payload().toString(Charset.defaultCharset()) + "] with QoS [" + message.qosLevel() + "]");
 
         if (message.qosLevel() == MqttQoS.AT_LEAST_ONCE) {
@@ -30,6 +33,7 @@ public class PubSubService {
         } else if (message.qosLevel() == MqttQoS.EXACTLY_ONCE) {
             endpoint.publishReceived(message.messageId());
         }
-    }
 
+        return Future.succeededFuture().map(endpoint);
+    }
 }

@@ -1,9 +1,13 @@
 package com.github.aseara.vmqtt.verticle;
 
+import com.github.aseara.vmqtt.auth.AuthService;
 import com.github.aseara.vmqtt.conf.MqttConfig;
 import com.github.aseara.vmqtt.handler.EndpointHandler;
+import com.github.aseara.vmqtt.message.SubTrie;
 import com.github.aseara.vmqtt.mqtt.MqttServer;
 import com.github.aseara.vmqtt.mqtt.MqttServerOptions;
+import com.github.aseara.vmqtt.processor.protocol.*;
+import com.github.aseara.vmqtt.storage.MemoryStorage;
 import com.github.aseara.vmqtt.util.FutureUtil;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
@@ -17,13 +21,19 @@ public class MqttVerticle extends AbstractVerticle {
 
     private final MqttConfig config;
 
+    private final SubTrie subscriptions;
+
+    private final MemoryStorage storage;
+
     private final EndpointHandler endpointHandler;
 
     private final List<MqttServer> mqttServers = new ArrayList<>();
 
     public MqttVerticle(MqttConfig config) {
         this.config = config;
-        this.endpointHandler = new EndpointHandler();
+        this.subscriptions = new SubTrie();
+        this.storage = new MemoryStorage();
+        this.endpointHandler = createHandler();
     }
 
     @Override
@@ -61,6 +71,20 @@ public class MqttVerticle extends AbstractVerticle {
                 stopPromise.fail(ar.cause());
             }
         });
+    }
+
+    private EndpointHandler createHandler() {
+        AuthService authService = new AuthService();
+        ConnectProcessor connect = new ConnectProcessor(authService);
+        DisconnectProcessor disconnect = new DisconnectProcessor();
+        PublishProcessor publish = new PublishProcessor(storage, subscriptions);
+        PubAckProcessor pubAck = new PubAckProcessor();
+        PubRecProcessor pubRec = new PubRecProcessor();
+        PubRelProcessor pubRel = new PubRelProcessor();
+        PubCompProcessor pubComp = new PubCompProcessor();
+        SubscribeProcessor sub = new SubscribeProcessor();
+        UnSubscribeProcessor unSub = new UnSubscribeProcessor();
+        return new EndpointHandler(connect, disconnect, publish, pubAck, pubRec, pubRel, pubComp, sub, unSub);
     }
 
 }
