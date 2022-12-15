@@ -55,8 +55,10 @@ public class MqttVerticle extends AbstractVerticle {
     }
 
     private MqttServer createMqttServer() {
-        MqttServerOptions options = new MqttServerOptions();
-        options.setPort(config.getMqtt().getPort());
+        MqttServerOptions options = new MqttServerOptions()
+                .setPort(config.getMqtt().getPort())
+                .setMaxMessageSize(config.getMqtt().getMaxMsgSize())
+                .setMaxClientIdLength(config.getMqtt().getMaxClientIdLength());
 
         return MqttServer.create(vertx, options)
                 .endpointHandler(endpointHandler)
