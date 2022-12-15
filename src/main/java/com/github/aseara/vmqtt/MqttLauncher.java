@@ -5,6 +5,7 @@ import com.github.aseara.vmqtt.verticle.MqttVerticle;
 import io.netty.util.internal.StringUtil;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
 import io.vertx.core.cli.CLI;
 import io.vertx.core.cli.CommandLine;
 import io.vertx.core.cli.Option;
@@ -86,7 +87,9 @@ public class MqttLauncher {
     }
 
     private static void start(MqttConfig config) {
-        Vertx vertx = Vertx.vertx();
+        VertxOptions vertxOptions = new VertxOptions()
+                .setPreferNativeTransport(true);
+        Vertx vertx = Vertx.vertx(vertxOptions);
 
         DeploymentOptions options = new DeploymentOptions()
                 .setConfig(JsonObject.mapFrom(config));
