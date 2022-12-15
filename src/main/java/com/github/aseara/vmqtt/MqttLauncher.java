@@ -87,6 +87,7 @@ public class MqttLauncher {
 
     private static void start(MqttConfig config) {
         Vertx vertx = Vertx.vertx();
+
         DeploymentOptions options = new DeploymentOptions()
                 .setConfig(JsonObject.mapFrom(config));
         MqttVerticle verticle = new MqttVerticle(config);
@@ -95,10 +96,10 @@ public class MqttLauncher {
                 log.info("mqtt verticle deploy succeed.");
             } else {
                 log.error("mqtt verticle deploy error: ", ar.cause());
+                vertx.close();
             }
         });
 
-        vertx.exceptionHandler(t -> log.error("exec error: ", t));
     }
 
 }

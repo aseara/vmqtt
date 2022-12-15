@@ -10,6 +10,8 @@ public class MqttConfig {
     @Data
     public static class Mqtt {
         private int port = 1883;
+
+        private int handlerThreadNum = Runtime.getRuntime().availableProcessors() * 2;
     }
 
 }
