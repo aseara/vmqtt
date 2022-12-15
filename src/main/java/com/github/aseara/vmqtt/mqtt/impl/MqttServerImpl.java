@@ -25,10 +25,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.MessageToMessageEncoder;
-import io.netty.handler.codec.http.HttpObjectAggregator;
-import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.codec.mqtt.MqttDecoder;
 import io.netty.handler.codec.mqtt.MqttEncoder;
 import io.netty.handler.timeout.IdleState;
@@ -46,8 +43,6 @@ import io.vertx.core.net.NetServer;
 import io.vertx.core.net.impl.NetSocketInternal;
 
 import java.util.List;
-
-import static com.github.aseara.vmqtt.mqtt.MqttServerOptions.MQTT_SUBPROTOCOL_CSV_LIST;
 
 
 /**
@@ -89,14 +84,7 @@ public class MqttServerImpl implements MqttServer {
       initChannel(pipeline);
       MqttServerConnection conn = new MqttServerConnection(soi, h1, h2, options);
 
-      soi.eventHandler(evt -> {
-        if (evt instanceof WebSocketServerProtocolHandler.HandshakeComplete) {
-          synchronized (conn) {
-            conn.handleHandshakeComplete((WebSocketServerProtocolHandler.HandshakeComplete) evt);
-          }
-        }
-        ReferenceCountUtil.release(evt);
-      });
+      soi.eventHandler(ReferenceCountUtil::release);
 
       soi.messageHandler(msg -> {
         synchronized (conn) {
@@ -212,19 +200,5 @@ public class MqttServerImpl implements MqttServer {
         super.userEventTriggered(ctx, evt);
       }
     });
-
-    if(options.isUseWebSocket()) {
-
-      int maxFrameSize = options.getWebSocketMaxFrameSize();
-
-      pipeline.addBefore("mqttEncoder", "httpServerCodec", new HttpServerCodec());
-      pipeline.addAfter("httpServerCodec", "aggregator", new HttpObjectAggregator(maxFrameSize));
-
-      pipeline.addAfter("aggregator", "webSocketHandler",
-        new WebSocketServerProtocolHandler("/mqtt", MQTT_SUBPROTOCOL_CSV_LIST, false,maxFrameSize, 10000L));
-
-      pipeline.addAfter("webSocketHandler", "bytebuf2wsEncoder", new ByteBufToWebSocketFrameEncoder());
-      pipeline.addAfter("bytebuf2wsEncoder", "ws2bytebufDecoder", new WebSocketFrameToByteBufDecoder());
-    }
   }
 }

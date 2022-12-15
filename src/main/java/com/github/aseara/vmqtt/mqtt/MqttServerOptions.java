@@ -45,8 +45,6 @@ public class MqttServerOptions extends NetServerOptions {
   private boolean isAutoClientId;
   // timeout on CONNECT packet
   private int timeoutOnConnect;
-  // if websocket should be used
-  private boolean useWebSocket;
   // max WebSocket frame size
   private int webSocketMaxFrameSize;
 
@@ -295,24 +293,6 @@ public class MqttServerOptions extends NetServerOptions {
    */
   public int timeoutOnConnect() {
     return this.timeoutOnConnect;
-  }
-
-  /**
-   * enable mqtt over websocket
-   *
-   * @param useWebSocket use mqtt over websocket
-   * @return  MQTT server options instance
-   */
-  public MqttServerOptions setUseWebSocket(boolean useWebSocket) {
-    this.useWebSocket = useWebSocket;
-    return this;
-  }
-
-  /**
-   * @return  use mqtt over websocket
-   */
-  public boolean isUseWebSocket() {
-    return useWebSocket;
   }
 
   /**

@@ -15,6 +15,9 @@ public class ConnectProcessor {
     }
 
     public Future<MqttEndpoint> processRequest(MqttEndpoint endpoint) {
+
+        endpoint.protocolVersion();
+
         // shows main connect info
         log.info("MQTT client [" + endpoint.clientIdentifier() + "] request to connect, clean session = " + endpoint.isCleanSession());
 

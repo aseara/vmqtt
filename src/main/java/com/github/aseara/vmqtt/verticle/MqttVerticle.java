@@ -59,7 +59,10 @@ public class MqttVerticle extends AbstractVerticle {
         options.setPort(config.getMqtt().getPort());
 
         return MqttServer.create(vertx, options)
-                .endpointHandler(endpointHandler);
+                .endpointHandler(endpointHandler)
+                .exceptionHandler(t -> {
+                    log.error("mqtt process error: ", t);
+                });
     }
 
     @Override

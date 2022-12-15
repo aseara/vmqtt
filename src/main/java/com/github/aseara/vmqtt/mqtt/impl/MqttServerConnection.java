@@ -87,9 +87,7 @@ public class MqttServerConnection {
 
     // handling directly native Netty MQTT messages, some of them are translated
     // to the related Vert.x ones for polyglotization
-    if (msg instanceof MqttMessage) {
-
-      MqttMessage mqttMessage = (MqttMessage) msg;
+    if (msg instanceof MqttMessage mqttMessage) {
 
       DecoderResult result = mqttMessage.decoderResult();
       if (result.isFailure()) {
@@ -108,95 +106,64 @@ public class MqttServerConnection {
       }
 
       switch (mqttMessage.fixedHeader().messageType()) {
-
-        case CONNECT:
-          handleConnect((MqttConnectMessage) msg);
-          break;
-
-        case SUBSCRIBE:
-
+        case CONNECT -> handleConnect((MqttConnectMessage) msg);
+        case SUBSCRIBE -> {
           io.netty.handler.codec.mqtt.MqttSubscribeMessage subscribe = (io.netty.handler.codec.mqtt.MqttSubscribeMessage) mqttMessage;
-
           MqttSubscribeMessage mqttSubscribeMessage = MqttSubscribeMessage.create(
-            subscribe.variableHeader().messageId(),
-            subscribe.payload().topicSubscriptions());
+                  subscribe.variableHeader().messageId(),
+                  subscribe.payload().topicSubscriptions());
           this.handleSubscribe(mqttSubscribeMessage);
-          break;
-
-        case UNSUBSCRIBE:
-
+        }
+        case UNSUBSCRIBE -> {
           io.netty.handler.codec.mqtt.MqttUnsubscribeMessage unsubscribe = (io.netty.handler.codec.mqtt.MqttUnsubscribeMessage) mqttMessage;
-
           MqttUnsubscribeMessage mqttUnsubscribeMessage = MqttUnsubscribeMessage.create(
-            unsubscribe.variableHeader().messageId(),
-            unsubscribe.payload().topics());
+                  unsubscribe.variableHeader().messageId(),
+                  unsubscribe.payload().topics());
           this.handleUnsubscribe(mqttUnsubscribeMessage);
-          break;
-
-        case PUBLISH:
-
+        }
+        case PUBLISH -> {
           io.netty.handler.codec.mqtt.MqttPublishMessage publish = (io.netty.handler.codec.mqtt.MqttPublishMessage) mqttMessage;
           ByteBuf newBuf = VertxHandler.safeBuffer(publish.payload());
-
           MqttPublishMessage mqttPublishMessage = MqttPublishMessage.create(
-            publish.variableHeader().packetId(),
-            publish.fixedHeader().qosLevel(),
-            publish.fixedHeader().isDup(),
-            publish.fixedHeader().isRetain(),
-            publish.variableHeader().topicName(),
-            newBuf,
-            publish.variableHeader().properties());
+                  publish.variableHeader().packetId(),
+                  publish.fixedHeader().qosLevel(),
+                  publish.fixedHeader().isDup(),
+                  publish.fixedHeader().isRetain(),
+                  publish.variableHeader().topicName(),
+                  newBuf,
+                  publish.variableHeader().properties());
           this.handlePublish(mqttPublishMessage);
-          break;
-
-        case PUBACK:
-
-          io.netty.handler.codec.mqtt.MqttPubAckMessage mqttPubackMessage = (io.netty.handler.codec.mqtt.MqttPubAckMessage) mqttMessage;
-          if(mqttPubackMessage.variableHeader() instanceof MqttPubReplyMessageVariableHeader) {
+        }
+        case PUBACK -> {
+          MqttPubAckMessage mqttPubackMessage = (MqttPubAckMessage) mqttMessage;
+          if (mqttPubackMessage.variableHeader() instanceof MqttPubReplyMessageVariableHeader) {
             MqttPubReplyMessageVariableHeader variableHeader = (MqttPubReplyMessageVariableHeader) mqttPubackMessage.variableHeader();
             this.handlePuback(variableHeader.messageId(), MqttPubAckReasonCode.valueOf(variableHeader.reasonCode()), variableHeader.properties());
           } else {
             this.handlePuback(mqttPubackMessage.variableHeader().messageId(), MqttPubAckReasonCode.SUCCESS, MqttProperties.NO_PROPERTIES);
           }
-          break;
-
-
-        case PUBREC:
-
+        }
+        case PUBREC -> {
           MqttPubReplyMessageVariableHeader pubrecVariableHeader = ((MqttPubReplyMessageVariableHeader) mqttMessage.variableHeader());
           this.handlePubrec(pubrecVariableHeader.messageId(), MqttPubRecReasonCode.valueOf(pubrecVariableHeader.reasonCode()), pubrecVariableHeader.properties());
-          break;
-
-        case PUBREL:
-
+        }
+        case PUBREL -> {
           MqttPubReplyMessageVariableHeader pubrelVariableHeader = (MqttPubReplyMessageVariableHeader) mqttMessage.variableHeader();
           this.handlePubrel(pubrelVariableHeader.messageId(), MqttPubRelReasonCode.valueOf(pubrelVariableHeader.reasonCode()), pubrelVariableHeader.properties());
-          break;
-
-        case PUBCOMP:
-
+        }
+        case PUBCOMP -> {
           MqttPubReplyMessageVariableHeader pubcompVariableHeader = (MqttPubReplyMessageVariableHeader) mqttMessage.variableHeader();
           this.handlePubcomp(pubcompVariableHeader.messageId(), MqttPubCompReasonCode.valueOf(pubcompVariableHeader.reasonCode()), pubcompVariableHeader.properties());
-          break;
-
-        case PINGREQ:
-
-          this.handlePingreq();
-          break;
-
-        case DISCONNECT:
-
-          io.netty.handler.codec.mqtt.MqttReasonCodeAndPropertiesVariableHeader disconnectVariableHeader =
-            (io.netty.handler.codec.mqtt.MqttReasonCodeAndPropertiesVariableHeader) mqttMessage.variableHeader();
+        }
+        case PINGREQ -> this.handlePingreq();
+        case DISCONNECT -> {
+          MqttReasonCodeAndPropertiesVariableHeader disconnectVariableHeader =
+                  (MqttReasonCodeAndPropertiesVariableHeader) mqttMessage.variableHeader();
           this.handleDisconnect(MqttDisconnectReasonCode.valueOf(disconnectVariableHeader.reasonCode()),
-            disconnectVariableHeader.properties());
-          break;
-
-        default:
-
-          this.chctx.fireExceptionCaught(new Exception("Wrong MQTT message type " + mqttMessage.fixedHeader().messageType()));
-          break;
-
+                  disconnectVariableHeader.properties());
+        }
+        default ->
+                this.chctx.fireExceptionCaught(new Exception("Wrong MQTT message type " + mqttMessage.fixedHeader().messageType()));
       }
 
     } else {
