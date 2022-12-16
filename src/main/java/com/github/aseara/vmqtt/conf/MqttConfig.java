@@ -19,6 +19,8 @@ public class MqttConfig {
 
         // when mqtt.version = 3.1 will check client id length
         private int maxClientIdLength = DEFAULT_MAX_CLIENT_ID_LENGTH * 2;
+
+        private boolean logNetty;
     }
 
 }

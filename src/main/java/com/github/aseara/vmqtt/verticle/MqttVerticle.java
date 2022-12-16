@@ -60,6 +60,8 @@ public class MqttVerticle extends AbstractVerticle {
                 .setMaxMessageSize(config.getMqtt().getMaxMsgSize())
                 .setMaxClientIdLength(config.getMqtt().getMaxClientIdLength());
 
+        options.setLogActivity(config.getMqtt().isLogNetty());
+
         return MqttServer.create(vertx, options)
                 .endpointHandler(endpointHandler)
                 .exceptionHandler(t -> {
