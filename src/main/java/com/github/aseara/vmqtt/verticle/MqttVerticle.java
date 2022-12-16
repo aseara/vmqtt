@@ -38,9 +38,18 @@ public class MqttVerticle extends AbstractVerticle {
 
     @Override
     public void start(Promise<Void> startPromise) {
+        MqttServerOptions options = new MqttServerOptions()
+                .setPort(config.getMqtt().getPort())
+                .setMaxMessageSize(config.getMqtt().getMaxMsgSize())
+                .setMaxClientIdLength(config.getMqtt().getMaxClientIdLength());
+
+        options.setLogActivity(config.getMqtt().isLogNetty());
+
         for (int i = 0; i < config.getMqtt().getHandlerThreadNum(); i++) {
             //  deploy more instances of the MQTT server to use more cores.
-            mqttServers.add(createMqttServer());
+            MqttServer.create(vertx, options)
+                    .endpointHandler(endpointHandler)
+                    .exceptionHandler(t -> log.error("mqtt process error: ", t));
         }
 
         FutureUtil.listAll(mqttServers, MqttServer::listen, ar -> {
@@ -52,21 +61,6 @@ public class MqttVerticle extends AbstractVerticle {
                 startPromise.fail(ar.cause());
             }
         });
-    }
-
-    private MqttServer createMqttServer() {
-        MqttServerOptions options = new MqttServerOptions()
-                .setPort(config.getMqtt().getPort())
-                .setMaxMessageSize(config.getMqtt().getMaxMsgSize())
-                .setMaxClientIdLength(config.getMqtt().getMaxClientIdLength());
-
-        options.setLogActivity(config.getMqtt().isLogNetty());
-
-        return MqttServer.create(vertx, options)
-                .endpointHandler(endpointHandler)
-                .exceptionHandler(t -> {
-                    log.error("mqtt process error: ", t);
-                });
     }
 
     @Override
