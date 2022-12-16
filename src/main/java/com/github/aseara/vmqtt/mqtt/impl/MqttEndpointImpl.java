@@ -28,6 +28,7 @@ import com.github.aseara.vmqtt.mqtt.messages.*;
 import com.github.aseara.vmqtt.mqtt.messages.codes.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.mqtt.*;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -861,6 +862,11 @@ public class MqttEndpointImpl implements MqttEndpoint {
       this.checkClosed();
       return conn.localAddress();
     }
+  }
+
+  @Override
+  public ChannelPipeline channelPipeline() {
+    return null;
   }
 
   public SocketAddress remoteAddress() {

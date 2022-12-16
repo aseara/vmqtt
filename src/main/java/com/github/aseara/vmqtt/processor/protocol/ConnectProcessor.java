@@ -1,13 +1,11 @@
 package com.github.aseara.vmqtt.processor.protocol;
 
 import com.github.aseara.vmqtt.auth.AuthService;
-import com.github.aseara.vmqtt.mqtt.MqttAuth;
 import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
+import com.github.aseara.vmqtt.mqtt.impl.MqttEndpointImpl;
 import com.github.aseara.vmqtt.processor.RequestProcessor;
-import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.vertx.core.Context;
 import io.vertx.core.Future;
-import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,10 +30,19 @@ public class ConnectProcessor extends RequestProcessor<MqttEndpoint> {
     private Future<MqttEndpoint> processConnect(MqttEndpoint endpoint) {
         Future<MqttEndpoint> result = Future.succeededFuture(endpoint);
 
+        // shows main connect info
+        log.info("MQTT client [" + endpoint.clientIdentifier() + "] request to connect, clean session = " + endpoint.isCleanSession());
+
         if (!versionValid(endpoint.protocolVersion())) {
             endpoint.reject(CONNECTION_REFUSED_UNACCEPTABLE_PROTOCOL_VERSION);
             return result;
         }
+
+        // 1. auth
+        // 2. keep alive
+        // 3. previous client
+        // 4. session
+        // 5. will
 
         return authService.authEndpoint(endpoint).onSuccess(r -> {
             if (!r) {
@@ -49,21 +56,8 @@ public class ConnectProcessor extends RequestProcessor<MqttEndpoint> {
         return mqttVersion == 3 || mqttVersion == 4;
     }
 
-    private boolean auth(MqttEndpoint endpoint) {
-        return true;
-    }
-
     private void afterAuth(MqttEndpoint endpoint) {
-        Context context = vertx.getOrCreateContext();
-        log.info("Run in work context: {}", context.isWorkerContext());
 
-        // shows main connect info
-        log.info("MQTT client [" + endpoint.clientIdentifier() + "] request to connect, clean session = " + endpoint.isCleanSession());
-
-        if (endpoint.auth() != null) {
-            log.info("[username = " + endpoint.auth().getUsername() + ", password = " + endpoint.auth().getPassword() + "]");
-        }
-        log.info("[properties = " + endpoint.connectProperties() + "]");
         if (endpoint.will() != null && endpoint.will().isWillFlag()) {
             System.out.println("[will topic = " + endpoint.will().getWillTopic() + " msg = " + new String(endpoint.will().getWillMessageBytes()) +
                     " QoS = " + endpoint.will().getWillQos() + " isRetain = " + endpoint.will().isWillRetain() + "]");
@@ -73,6 +67,13 @@ public class ConnectProcessor extends RequestProcessor<MqttEndpoint> {
 
         // accept connection from the remote client
         endpoint.accept(false);
+    }
+
+    private Future<Boolean> keepAlive(MqttEndpoint endpoint) {
+        if (endpoint instanceof MqttEndpointImpl) {
+//            vertx.getOrCreateContext().
+        }
+        return Future.succeededFuture(true);
     }
 
 }

@@ -17,6 +17,7 @@ package com.github.aseara.vmqtt.mqtt;
 
 import com.github.aseara.vmqtt.mqtt.messages.*;
 import com.github.aseara.vmqtt.mqtt.messages.codes.*;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttProperties;
 import io.netty.handler.codec.mqtt.MqttQoS;
@@ -49,6 +50,11 @@ public interface MqttEndpoint {
    * @return the local address for this socket
    */
   SocketAddress localAddress();
+
+  /**
+   * @return pipeline of netty socket channel
+   */
+  ChannelPipeline channelPipeline();
 
   /**
    * @return true if this {@link MqttEndpoint} is encrypted via SSL/TLS.
