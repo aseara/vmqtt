@@ -4,17 +4,20 @@ import com.github.aseara.vmqtt.auth.AuthService;
 import com.github.aseara.vmqtt.conf.MqttConfig;
 import com.github.aseara.vmqtt.handler.EndpointHandler;
 import com.github.aseara.vmqtt.message.SubTrie;
+import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
 import com.github.aseara.vmqtt.mqtt.MqttServer;
 import com.github.aseara.vmqtt.mqtt.MqttServerOptions;
 import com.github.aseara.vmqtt.processor.protocol.*;
 import com.github.aseara.vmqtt.storage.MemoryStorage;
-import com.github.aseara.vmqtt.util.FutureUtil;
+import com.github.aseara.vmqtt.common.FutureUtil;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.github.aseara.vmqtt.common.MqttConstants.CONTEXT_KEY_ENDPOINT;
 
 @Slf4j
 public class MqttVerticle extends AbstractVerticle {
@@ -80,8 +83,13 @@ public class MqttVerticle extends AbstractVerticle {
                 .endpointHandler(endpointHandler)
                 .exceptionHandler(t -> {
                     log.error("mqtt connection process error: ", t);
-                    vertx.getOrCreateContext().get("endpoint");
-                    throw new RuntimeException(t);
+                    // Try to close endpoint when an exception is thrown here.
+                    Object ep = vertx.getOrCreateContext().get(CONTEXT_KEY_ENDPOINT);
+                    if (ep instanceof MqttEndpoint) {
+                        if (!((MqttEndpoint) ep).isClosed()) {
+                            ((MqttEndpoint) ep).close();
+                        }
+                    }
                 });
     }
 

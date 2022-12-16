@@ -6,6 +6,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import lombok.extern.slf4j.Slf4j;
 
+import static com.github.aseara.vmqtt.common.MqttConstants.CONTEXT_KEY_ENDPOINT;
 import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.CONNECTION_REFUSED_SERVER_UNAVAILABLE;
 
 @Slf4j
@@ -63,7 +64,7 @@ public class EndpointHandler implements Handler<MqttEndpoint> {
             if (!e.isConnected()) {
                 return;
             }
-            vertx.getOrCreateContext().put("endpoint", endpoint);
+            vertx.getOrCreateContext().put(CONTEXT_KEY_ENDPOINT, endpoint);
             // add message process after connect been accepted
             endpoint.publishHandler(m -> publishProcessor.processMessage(endpoint, m))
                     .publishAcknowledgeMessageHandler(m -> pubAckProcessor.processMessage(endpoint, m))

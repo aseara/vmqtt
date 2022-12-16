@@ -1,4 +1,4 @@
-package com.github.aseara.vmqtt.util;
+package com.github.aseara.vmqtt.common;
 
 import io.vertx.core.AsyncResult;
 import io.vertx.core.CompositeFuture;
