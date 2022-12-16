@@ -14,6 +14,7 @@ public class DisconnectProcessor extends RequestProcessor<MqttDisconnectMessage>
 
     @Override
     public Future<MqttEndpoint> processInternal(MqttEndpoint endpoint, MqttDisconnectMessage message) {
+        // delete will topic store
         return null;
     }
 }

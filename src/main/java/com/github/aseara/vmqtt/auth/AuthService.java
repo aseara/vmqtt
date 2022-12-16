@@ -6,7 +6,7 @@ import io.vertx.core.Future;
 public class AuthService {
 
     public Future<Boolean> authEndpoint(MqttEndpoint endpoint) {
-        return Future.succeededFuture();
+        return Future.succeededFuture(true);
     }
 
 }
