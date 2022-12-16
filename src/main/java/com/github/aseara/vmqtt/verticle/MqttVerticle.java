@@ -25,7 +25,7 @@ public class MqttVerticle extends AbstractVerticle {
 
     private final MemoryStorage storage;
 
-    private final EndpointHandler endpointHandler;
+    private EndpointHandler endpointHandler;
 
     private final List<MqttServer> mqttServers = new ArrayList<>();
 
@@ -33,11 +33,12 @@ public class MqttVerticle extends AbstractVerticle {
         this.config = config;
         this.subscriptions = new SubTrie();
         this.storage = new MemoryStorage();
-        this.endpointHandler = createHandler();
     }
 
     @Override
     public void start(Promise<Void> startPromise) {
+        this.endpointHandler = createHandler();
+
         MqttServerOptions options = new MqttServerOptions()
                 .setPort(config.getMqtt().getPort())
                 .setMaxMessageSize(config.getMqtt().getMaxMsgSize())
@@ -47,9 +48,7 @@ public class MqttVerticle extends AbstractVerticle {
 
         for (int i = 0; i < config.getMqtt().getHandlerThreadNum(); i++) {
             //  deploy more instances of the MQTT server to use more cores.
-            MqttServer.create(vertx, options)
-                    .endpointHandler(endpointHandler)
-                    .exceptionHandler(t -> log.error("mqtt process error: ", t));
+            mqttServers.add(createMqttServer(options));
         }
 
         FutureUtil.listAll(mqttServers, MqttServer::listen, ar -> {
@@ -63,6 +62,8 @@ public class MqttVerticle extends AbstractVerticle {
         });
     }
 
+
+
     @Override
     public void stop(Promise<Void> stopPromise) {
         FutureUtil.listAll(mqttServers, MqttServer::close, ar -> {
@@ -74,18 +75,29 @@ public class MqttVerticle extends AbstractVerticle {
         });
     }
 
+    private MqttServer createMqttServer(MqttServerOptions options) {
+        return MqttServer.create(vertx, options)
+                .endpointHandler(endpointHandler)
+                .exceptionHandler(t -> {
+                    log.error("mqtt connection process error: ", t);
+                    vertx.getOrCreateContext().get("endpoint");
+                    throw new RuntimeException(t);
+                });
+    }
+
     private EndpointHandler createHandler() {
         AuthService authService = new AuthService();
-        ConnectProcessor connect = new ConnectProcessor(authService);
-        DisconnectProcessor disconnect = new DisconnectProcessor();
-        PublishProcessor publish = new PublishProcessor(storage, subscriptions);
-        PubAckProcessor pubAck = new PubAckProcessor();
-        PubRecProcessor pubRec = new PubRecProcessor();
-        PubRelProcessor pubRel = new PubRelProcessor();
-        PubCompProcessor pubComp = new PubCompProcessor();
-        SubscribeProcessor sub = new SubscribeProcessor();
-        UnSubscribeProcessor unSub = new UnSubscribeProcessor();
-        return new EndpointHandler(connect, disconnect, publish, pubAck, pubRec, pubRel, pubComp, sub, unSub);
+        ConnectProcessor connect = new ConnectProcessor(vertx, authService);
+        DisconnectProcessor disconnect = new DisconnectProcessor(vertx);
+        PublishProcessor publish = new PublishProcessor(vertx, storage, subscriptions);
+        PubAckProcessor pubAck = new PubAckProcessor(vertx);
+        PubRecProcessor pubRec = new PubRecProcessor(vertx);
+        PubRelProcessor pubRel = new PubRelProcessor(vertx);
+        PubCompProcessor pubComp = new PubCompProcessor(vertx);
+        SubscribeProcessor sub = new SubscribeProcessor(vertx);
+        UnSubscribeProcessor unSub = new UnSubscribeProcessor(vertx);
+
+        return new EndpointHandler(vertx, connect, disconnect, publish, pubAck, pubRec, pubRel, pubComp, sub, unSub);
     }
 
 }

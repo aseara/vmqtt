@@ -4,11 +4,16 @@ import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
 import com.github.aseara.vmqtt.mqtt.messages.MqttPubRelMessage;
 import com.github.aseara.vmqtt.processor.RequestProcessor;
 import io.vertx.core.Future;
+import io.vertx.core.Vertx;
 
-public class PubRelProcessor implements RequestProcessor<MqttPubRelMessage> {
+public class PubRelProcessor extends RequestProcessor<MqttPubRelMessage> {
+
+    public PubRelProcessor(Vertx vertx) {
+        super(vertx);
+    }
 
     @Override
-    public Future<MqttEndpoint> processRequest(MqttEndpoint endpoint, MqttPubRelMessage message) {
+    public Future<MqttEndpoint> processInternal(MqttEndpoint endpoint, MqttPubRelMessage message) {
         endpoint.publishComplete(message.messageId());
         return null;
     }

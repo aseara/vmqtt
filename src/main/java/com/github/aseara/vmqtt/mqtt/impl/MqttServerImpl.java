@@ -172,9 +172,7 @@ public class MqttServerImpl implements MqttServer {
   }
 
   private void initChannel(ChannelPipeline pipeline) {
-
     pipeline.addBefore("handler", "mqttEncoder", MqttEncoder.INSTANCE);
-
     pipeline.addBefore("handler", "mqttDecoder",
             new MqttDecoder(this.options.getMaxMessageSize(), this.options.getMaxClientIdLength()));
 

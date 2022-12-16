@@ -7,24 +7,26 @@ import com.github.aseara.vmqtt.processor.RequestProcessor;
 import com.github.aseara.vmqtt.storage.MemoryStorage;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.core.Future;
+import io.vertx.core.Vertx;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.Charset;
 
 @Slf4j
-public class PublishProcessor implements RequestProcessor<MqttPublishMessage> {
+public class PublishProcessor extends RequestProcessor<MqttPublishMessage> {
 
     private final MemoryStorage storage;
 
     private final SubTrie subscriptions;
 
-    public PublishProcessor(MemoryStorage storage, SubTrie subscriptions) {
+    public PublishProcessor(Vertx vertx, MemoryStorage storage, SubTrie subscriptions) {
+        super(vertx);
         this.storage = storage;
         this.subscriptions = subscriptions;
     }
 
     @Override
-    public Future<MqttEndpoint> processRequest(MqttEndpoint endpoint, MqttPublishMessage message) {
+    public Future<MqttEndpoint> processInternal(MqttEndpoint endpoint, MqttPublishMessage message) {
         log.info("Just received message [" + message.payload().toString(Charset.defaultCharset()) + "] with QoS [" + message.qosLevel() + "]");
 
         if (message.qosLevel() == MqttQoS.AT_LEAST_ONCE) {
