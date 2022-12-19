@@ -3,13 +3,11 @@ package com.github.aseara.vmqtt;
 import com.github.aseara.vmqtt.conf.MqttConfig;
 import com.github.aseara.vmqtt.verticle.MqttVerticle;
 import io.netty.util.internal.StringUtil;
-import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.cli.CLI;
 import io.vertx.core.cli.CommandLine;
 import io.vertx.core.cli.Option;
-import io.vertx.core.json.JsonObject;
 import lombok.extern.slf4j.Slf4j;
 import org.yaml.snakeyaml.Yaml;
 
@@ -89,17 +87,17 @@ public class MqttLauncher {
     private static void start(MqttConfig config) {
         VertxOptions vertxOptions = new VertxOptions()
                 .setPreferNativeTransport(true);
+
         Vertx vertx = Vertx.vertx(vertxOptions);
 
-        DeploymentOptions options = new DeploymentOptions()
-                .setConfig(JsonObject.mapFrom(config));
         MqttVerticle verticle = new MqttVerticle(config);
-        vertx.deployVerticle(verticle, options).onComplete(ar -> {
+        vertx.deployVerticle(verticle).onComplete(ar -> {
             if (ar.succeeded()) {
                 log.info("mqtt verticle deploy succeed.");
             } else {
                 log.error("mqtt verticle deploy error: ", ar.cause());
                 vertx.close();
+                System.exit(1);
             }
         });
 

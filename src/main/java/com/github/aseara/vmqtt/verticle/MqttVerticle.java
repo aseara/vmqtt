@@ -1,23 +1,30 @@
 package com.github.aseara.vmqtt.verticle;
 
 import com.github.aseara.vmqtt.auth.AuthService;
+import com.github.aseara.vmqtt.common.FutureUtil;
 import com.github.aseara.vmqtt.conf.MqttConfig;
+import com.github.aseara.vmqtt.exception.MqttExceptionHandler;
+import com.github.aseara.vmqtt.handler.CloseHandler;
 import com.github.aseara.vmqtt.handler.EndpointHandler;
 import com.github.aseara.vmqtt.message.SubTrie;
-import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
 import com.github.aseara.vmqtt.mqtt.MqttServer;
 import com.github.aseara.vmqtt.mqtt.MqttServerOptions;
-import com.github.aseara.vmqtt.processor.protocol.*;
+import com.github.aseara.vmqtt.processor.protocol.ConnectProcessor;
+import com.github.aseara.vmqtt.processor.protocol.DisconnectProcessor;
+import com.github.aseara.vmqtt.processor.protocol.PubAckProcessor;
+import com.github.aseara.vmqtt.processor.protocol.PubCompProcessor;
+import com.github.aseara.vmqtt.processor.protocol.PubRecProcessor;
+import com.github.aseara.vmqtt.processor.protocol.PubRelProcessor;
+import com.github.aseara.vmqtt.processor.protocol.PublishProcessor;
+import com.github.aseara.vmqtt.processor.protocol.SubscribeProcessor;
+import com.github.aseara.vmqtt.processor.protocol.UnSubscribeProcessor;
 import com.github.aseara.vmqtt.storage.MemoryStorage;
-import com.github.aseara.vmqtt.common.FutureUtil;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import static com.github.aseara.vmqtt.common.MqttConstants.CONTEXT_KEY_ENDPOINT;
 
 @Slf4j
 public class MqttVerticle extends AbstractVerticle {
@@ -30,6 +37,10 @@ public class MqttVerticle extends AbstractVerticle {
 
     private EndpointHandler endpointHandler;
 
+    private final MqttExceptionHandler exceptionHandler = new MqttExceptionHandler();
+
+    private final CloseHandler closeHandler = new CloseHandler();
+
     private final List<MqttServer> mqttServers = new ArrayList<>();
 
     public MqttVerticle(MqttConfig config) {
@@ -41,6 +52,8 @@ public class MqttVerticle extends AbstractVerticle {
     @Override
     public void start(Promise<Void> startPromise) {
         this.endpointHandler = createHandler();
+
+        vertx.getOrCreateContext().put("", "");
 
         MqttServerOptions options = new MqttServerOptions()
                 .setPort(config.getMqtt().getPort())
@@ -81,31 +94,27 @@ public class MqttVerticle extends AbstractVerticle {
     private MqttServer createMqttServer(MqttServerOptions options) {
         return MqttServer.create(vertx, options)
                 .endpointHandler(endpointHandler)
-                .exceptionHandler(t -> {
-                    log.error("mqtt connection process error: ", t);
-                    // Try to close endpoint when an exception is thrown here.
-                    Object ep = vertx.getOrCreateContext().get(CONTEXT_KEY_ENDPOINT);
-                    if (ep instanceof MqttEndpoint) {
-                        if (!((MqttEndpoint) ep).isClosed()) {
-                            ((MqttEndpoint) ep).close();
-                        }
-                    }
-                });
+                .exceptionHandler(exceptionHandler);
     }
 
     private EndpointHandler createHandler() {
         AuthService authService = new AuthService();
-        ConnectProcessor connect = new ConnectProcessor(vertx, authService);
-        DisconnectProcessor disconnect = new DisconnectProcessor(vertx);
-        PublishProcessor publish = new PublishProcessor(vertx, storage, subscriptions);
-        PubAckProcessor pubAck = new PubAckProcessor(vertx);
-        PubRecProcessor pubRec = new PubRecProcessor(vertx);
-        PubRelProcessor pubRel = new PubRelProcessor(vertx);
-        PubCompProcessor pubComp = new PubCompProcessor(vertx);
-        SubscribeProcessor sub = new SubscribeProcessor(vertx);
-        UnSubscribeProcessor unSub = new UnSubscribeProcessor(vertx);
 
-        return new EndpointHandler(vertx, connect, disconnect, publish, pubAck, pubRec, pubRel, pubComp, sub, unSub);
+        EndpointHandler handler = new EndpointHandler();
+
+        handler.setConnectProcessor(new ConnectProcessor(authService));
+        handler.setDisconnectProcessor(new DisconnectProcessor());
+        handler.setPublishProcessor(new PublishProcessor(storage, subscriptions));
+        handler.setPubAckProcessor(new PubAckProcessor());
+        handler.setPubRecProcessor(new PubRecProcessor());
+        handler.setPubRelProcessor(new PubRelProcessor());
+        handler.setPubCompProcessor(new PubCompProcessor());
+        handler.setSubscribeProcessor(new SubscribeProcessor());
+        handler.setUnSubscribeProcessor(new UnSubscribeProcessor());
+        handler.setExceptionHandler(exceptionHandler);
+        handler.setCloseHandler(closeHandler);
+
+        return handler;
     }
 
 }

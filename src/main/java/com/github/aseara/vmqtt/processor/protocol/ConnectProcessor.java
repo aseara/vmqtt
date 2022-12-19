@@ -4,9 +4,7 @@ import com.github.aseara.vmqtt.auth.AuthService;
 import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
 import com.github.aseara.vmqtt.mqtt.impl.MqttEndpointImpl;
 import com.github.aseara.vmqtt.processor.RequestProcessor;
-import io.vertx.core.Context;
 import io.vertx.core.Future;
-import io.vertx.core.Vertx;
 import lombok.extern.slf4j.Slf4j;
 
 import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.CONNECTION_REFUSED_BAD_USER_NAME_OR_PASSWORD;
@@ -17,8 +15,7 @@ public class ConnectProcessor extends RequestProcessor<MqttEndpoint> {
 
     private final AuthService authService;
 
-    public ConnectProcessor(Vertx vertx, AuthService authService) {
-        super(vertx);
+    public ConnectProcessor(AuthService authService) {
         this.authService = authService;
     }
 

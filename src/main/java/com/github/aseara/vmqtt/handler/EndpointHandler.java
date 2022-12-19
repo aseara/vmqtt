@@ -1,57 +1,47 @@
 package com.github.aseara.vmqtt.handler;
 
+import com.github.aseara.vmqtt.exception.MqttExceptionHandler;
 import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
-import com.github.aseara.vmqtt.processor.protocol.*;
+import com.github.aseara.vmqtt.processor.protocol.ConnectProcessor;
+import com.github.aseara.vmqtt.processor.protocol.DisconnectProcessor;
+import com.github.aseara.vmqtt.processor.protocol.PubAckProcessor;
+import com.github.aseara.vmqtt.processor.protocol.PubCompProcessor;
+import com.github.aseara.vmqtt.processor.protocol.PubRecProcessor;
+import com.github.aseara.vmqtt.processor.protocol.PubRelProcessor;
+import com.github.aseara.vmqtt.processor.protocol.PublishProcessor;
+import com.github.aseara.vmqtt.processor.protocol.SubscribeProcessor;
+import com.github.aseara.vmqtt.processor.protocol.UnSubscribeProcessor;
 import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import static com.github.aseara.vmqtt.common.MqttConstants.CONTEXT_KEY_ENDPOINT;
 import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.CONNECTION_REFUSED_SERVER_UNAVAILABLE;
 
 @Slf4j
+@Setter
 public class EndpointHandler implements Handler<MqttEndpoint> {
 
-    private final Vertx vertx;
+    private ConnectProcessor connectProcessor;
 
-    private final ConnectProcessor connectProcessor;
+    private DisconnectProcessor disconnectProcessor;
 
-    private final DisconnectProcessor disconnectProcessor;
+    private PublishProcessor publishProcessor;
 
-    private final PublishProcessor publishProcessor;
+    private PubAckProcessor pubAckProcessor;
 
-    private final PubAckProcessor pubAckProcessor;
+    private PubRecProcessor pubRecProcessor;
 
-    private final PubRecProcessor pubRecProcessor;
+    private PubRelProcessor pubRelProcessor;
 
-    private final PubRelProcessor pubRelProcessor;
+    private PubCompProcessor pubCompProcessor;
 
-    private final PubCompProcessor pubCompProcessor;
+    private SubscribeProcessor subscribeProcessor;
 
-    private final SubscribeProcessor subscribeProcessor;
+    private UnSubscribeProcessor unSubscribeProcessor;
 
-    private final UnSubscribeProcessor unSubscribeProcessor;
+    private MqttExceptionHandler exceptionHandler;
 
-    public EndpointHandler(Vertx vertx, ConnectProcessor connectProcessor,
-                           DisconnectProcessor disconnectProcessor,
-                           PublishProcessor publishProcessor,
-                           PubAckProcessor pubAckProcessor,
-                           PubRecProcessor pubRecProcessor,
-                           PubRelProcessor pubRelProcessor,
-                           PubCompProcessor pubCompProcessor,
-                           SubscribeProcessor subscribeProcessor,
-                           UnSubscribeProcessor unSubscribeProcessor) {
-        this.vertx = vertx;
-        this.connectProcessor = connectProcessor;
-        this.disconnectProcessor = disconnectProcessor;
-        this.publishProcessor = publishProcessor;
-        this.pubAckProcessor = pubAckProcessor;
-        this.pubRecProcessor = pubRecProcessor;
-        this.pubRelProcessor = pubRelProcessor;
-        this.pubCompProcessor = pubCompProcessor;
-        this.subscribeProcessor = subscribeProcessor;
-        this.unSubscribeProcessor = unSubscribeProcessor;
-    }
+    private CloseHandler closeHandler;
 
     @Override
     public void handle(MqttEndpoint endpoint) {
@@ -64,16 +54,17 @@ public class EndpointHandler implements Handler<MqttEndpoint> {
             if (!e.isConnected()) {
                 return;
             }
-            vertx.getOrCreateContext().put(CONTEXT_KEY_ENDPOINT, endpoint);
             // add message process after connect been accepted
-            endpoint.publishHandler(m -> publishProcessor.processMessage(endpoint, m))
+            endpoint.closeHandler(v -> closeHandler.handle(endpoint))
+                    .publishHandler(m -> publishProcessor.processMessage(endpoint, m))
                     .publishAcknowledgeMessageHandler(m -> pubAckProcessor.processMessage(endpoint, m))
                     .publishReceivedMessageHandler(m -> pubRecProcessor.processMessage(endpoint, m))
                     .publishReleaseMessageHandler(m -> pubRelProcessor.processMessage(endpoint, m))
                     .publishCompletionMessageHandler(m -> pubCompProcessor.processMessage(endpoint, m))
                     .subscribeHandler(m -> subscribeProcessor.processMessage(endpoint, m))
                     .unsubscribeHandler(m -> unSubscribeProcessor.processMessage(endpoint, m))
-                    .disconnectMessageHandler(m -> disconnectProcessor.processMessage(endpoint, m));
+                    .disconnectMessageHandler(m -> disconnectProcessor.processMessage(endpoint, m))
+                    .exceptionHandler(exceptionHandler);
         });
     }
 }

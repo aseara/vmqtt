@@ -16,6 +16,7 @@
 
 package com.github.aseara.vmqtt.mqtt.impl;
 
+import com.github.aseara.vmqtt.exception.MqttEndpointException;
 import com.github.aseara.vmqtt.mqtt.MqttAuth;
 import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
 import com.github.aseara.vmqtt.mqtt.MqttServerOptions;
@@ -23,23 +24,32 @@ import com.github.aseara.vmqtt.mqtt.MqttWill;
 import com.github.aseara.vmqtt.mqtt.messages.MqttPublishMessage;
 import com.github.aseara.vmqtt.mqtt.messages.MqttSubscribeMessage;
 import com.github.aseara.vmqtt.mqtt.messages.MqttUnsubscribeMessage;
-import com.github.aseara.vmqtt.mqtt.messages.codes.*;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttDisconnectReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubAckReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubCompReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubRecReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubRelReasonCode;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
-import io.netty.handler.codec.mqtt.*;
+import io.netty.handler.codec.mqtt.MqttConnectMessage;
+import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
+import io.netty.handler.codec.mqtt.MqttMessage;
+import io.netty.handler.codec.mqtt.MqttProperties;
+import io.netty.handler.codec.mqtt.MqttPubAckMessage;
+import io.netty.handler.codec.mqtt.MqttPubReplyMessageVariableHeader;
+import io.netty.handler.codec.mqtt.MqttReasonCodeAndPropertiesVariableHeader;
+import io.netty.handler.codec.mqtt.MqttUnacceptableProtocolVersionException;
+import io.netty.handler.codec.mqtt.MqttVersion;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
-import io.vertx.core.VertxException;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.impl.headers.HeadersAdaptor;
-import io.vertx.core.impl.logging.Logger;
-import io.vertx.core.impl.logging.LoggerFactory;
 import io.vertx.core.net.impl.NetSocketInternal;
 import io.vertx.core.net.impl.VertxHandler;
 
@@ -50,13 +60,11 @@ import java.util.UUID;
  */
 public class MqttServerConnection {
 
-  private static final Logger log = LoggerFactory.getLogger(MqttServerConnection.class);
-
   // handler to call when a remote MQTT client connects and establishes a connection
-  private Handler<MqttEndpoint> endpointHandler;
+  private final Handler<MqttEndpoint> endpointHandler;
 
   // handler to call when an connection is rejected
-  private Handler<Throwable> exceptionHandler;
+  private final Handler<Throwable> exceptionHandler;
 
   private final NetSocketInternal so;
 
@@ -136,8 +144,7 @@ public class MqttServerConnection {
         }
         case PUBACK -> {
           MqttPubAckMessage mqttPubackMessage = (MqttPubAckMessage) mqttMessage;
-          if (mqttPubackMessage.variableHeader() instanceof MqttPubReplyMessageVariableHeader) {
-            MqttPubReplyMessageVariableHeader variableHeader = (MqttPubReplyMessageVariableHeader) mqttPubackMessage.variableHeader();
+          if (mqttPubackMessage.variableHeader() instanceof MqttPubReplyMessageVariableHeader variableHeader) {
             this.handlePuback(variableHeader.messageId(), MqttPubAckReasonCode.valueOf(variableHeader.reasonCode()), variableHeader.properties());
           } else {
             this.handlePuback(mqttPubackMessage.variableHeader().messageId(), MqttPubAckReasonCode.SUCCESS, MqttProperties.NO_PROPERTIES);
@@ -244,10 +251,8 @@ public class MqttServerConnection {
       chctx.pipeline().addBefore("handler", "keepAliveHandler", new ChannelDuplexHandler() {
 
         @Override
-        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-
-          if (evt instanceof IdleStateEvent) {
-            IdleStateEvent e = (IdleStateEvent) evt;
+        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
+          if (evt instanceof IdleStateEvent e) {
             if (e.state() == IdleState.READER_IDLE) {
               endpoint.close();
             }
@@ -259,7 +264,8 @@ public class MqttServerConnection {
     // MQTT spec 3.1.1 : if client-id is "zero-bytes", clean session MUST be true
     if (isZeroBytes && !msg.variableHeader().isCleanSession()) {
       if (this.exceptionHandler != null) {
-        this.exceptionHandler.handle(new VertxException("With zero-length client-id, clean session MUST be true"));
+        this.exceptionHandler.handle(new MqttEndpointException(endpoint,
+                "With zero-length client-id, clean session MUST be true"));
       }
       if(endpoint.protocolVersion() >= MqttVersion.MQTT_5.protocolLevel()) {
         this.endpoint.reject(MqttConnectReturnCode.CONNECTION_REFUSED_CLIENT_IDENTIFIER_NOT_VALID);
@@ -269,9 +275,7 @@ public class MqttServerConnection {
     } else {
 
       // an exception at connection level is propagated to the endpoint
-      this.so.exceptionHandler(t -> {
-        this.endpoint.handleException(t);
-      });
+      this.so.exceptionHandler(this.endpoint::handleException);
 
       // Used for calling the close handler when the remote MQTT client closes the connection
       this.so.closeHandler(v -> this.endpoint.handleClosed());

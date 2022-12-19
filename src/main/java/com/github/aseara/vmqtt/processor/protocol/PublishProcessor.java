@@ -7,7 +7,6 @@ import com.github.aseara.vmqtt.processor.RequestProcessor;
 import com.github.aseara.vmqtt.storage.MemoryStorage;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.core.Future;
-import io.vertx.core.Vertx;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.Charset;
@@ -19,8 +18,7 @@ public class PublishProcessor extends RequestProcessor<MqttPublishMessage> {
 
     private final SubTrie subscriptions;
 
-    public PublishProcessor(Vertx vertx, MemoryStorage storage, SubTrie subscriptions) {
-        super(vertx);
+    public PublishProcessor(MemoryStorage storage, SubTrie subscriptions) {
         this.storage = storage;
         this.subscriptions = subscriptions;
     }

@@ -19,13 +19,9 @@ package com.github.aseara.vmqtt.mqtt.impl;
 import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
 import com.github.aseara.vmqtt.mqtt.MqttServer;
 import com.github.aseara.vmqtt.mqtt.MqttServerOptions;
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.MessageToMessageDecoder;
-import io.netty.handler.codec.MessageToMessageEncoder;
-import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.handler.codec.mqtt.MqttDecoder;
 import io.netty.handler.codec.mqtt.MqttEncoder;
 import io.netty.handler.timeout.IdleState;
@@ -37,12 +33,8 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.impl.VertxInternal;
-import io.vertx.core.impl.logging.Logger;
-import io.vertx.core.impl.logging.LoggerFactory;
 import io.vertx.core.net.NetServer;
 import io.vertx.core.net.impl.NetSocketInternal;
-
-import java.util.List;
 
 
 /**
@@ -50,14 +42,12 @@ import java.util.List;
  */
 public class MqttServerImpl implements MqttServer {
 
-  private static final Logger log = LoggerFactory.getLogger(MqttServerImpl.class);
-
   private final VertxInternal vertx;
   private final NetServer server;
   private Handler<MqttEndpoint> endpointHandler;
   private Handler<Throwable> exceptionHandler;
 
-  private MqttServerOptions options;
+  private final MqttServerOptions options;
 
   public MqttServerImpl(Vertx vertx, MqttServerOptions options) {
     this.vertx = (VertxInternal) vertx;
@@ -148,29 +138,6 @@ public class MqttServerImpl implements MqttServer {
   }
 
 
-  static class WebSocketFrameToByteBufDecoder extends MessageToMessageDecoder<BinaryWebSocketFrame> {
-
-    @Override
-    protected void decode(ChannelHandlerContext chc, BinaryWebSocketFrame frame, List<Object> out)
-      throws Exception {
-      // convert the frame to a ByteBuf
-      ByteBuf bb = frame.content();
-      bb.retain();
-      out.add(bb);
-    }
-  }
-
-  static class ByteBufToWebSocketFrameEncoder extends MessageToMessageEncoder<ByteBuf> {
-
-    @Override
-    protected void encode(ChannelHandlerContext chc, ByteBuf bb, List<Object> out) throws Exception {
-      // convert the ByteBuf to a WebSocketFrame
-      BinaryWebSocketFrame result = new BinaryWebSocketFrame();
-      result.content().writeBytes(bb);
-      out.add(result);
-    }
-  }
-
   private void initChannel(ChannelPipeline pipeline) {
     pipeline.addBefore("handler", "mqttEncoder", MqttEncoder.INSTANCE);
     pipeline.addBefore("handler", "mqttDecoder",
@@ -183,8 +150,7 @@ public class MqttServerImpl implements MqttServer {
       @Override
       public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
 
-        if (evt instanceof IdleStateEvent) {
-          IdleStateEvent e = (IdleStateEvent) evt;
+        if (evt instanceof IdleStateEvent e) {
           if (e.state() == IdleState.READER_IDLE) {
             // as MQTT 3.1.1 describes, if no packet is sent after a "reasonable" time (here CONNECT timeout)
             // the connection is closed

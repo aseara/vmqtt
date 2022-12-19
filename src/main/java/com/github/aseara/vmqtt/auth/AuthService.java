@@ -8,7 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 public class AuthService {
 
     public Future<Boolean> authEndpoint(MqttEndpoint endpoint) {
-        log.info("[username = " + endpoint.auth().getUsername() + ", password = " + endpoint.auth().getPassword() + "]");
+        if (endpoint.auth() != null) {
+            log.info("[username = " + endpoint.auth().getUsername() + ", password = " + endpoint.auth().getPassword() + "]");
+        }
         return Future.succeededFuture(true);
     }
 

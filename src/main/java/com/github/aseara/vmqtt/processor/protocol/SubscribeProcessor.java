@@ -7,16 +7,11 @@ import com.github.aseara.vmqtt.mqtt.messages.codes.MqttSubAckReasonCode;
 import com.github.aseara.vmqtt.processor.RequestProcessor;
 import io.netty.handler.codec.mqtt.MqttProperties;
 import io.vertx.core.Future;
-import io.vertx.core.Vertx;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class SubscribeProcessor extends RequestProcessor<MqttSubscribeMessage> {
-
-    public SubscribeProcessor(Vertx vertx) {
-        super(vertx);
-    }
 
     @Override
     public Future<MqttEndpoint> processInternal(MqttEndpoint endpoint, MqttSubscribeMessage subscribe) {
