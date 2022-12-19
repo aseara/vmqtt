@@ -137,7 +137,6 @@ public class MqttServerImpl implements MqttServer {
     server.close(completionHandler);
   }
 
-
   private void initChannel(ChannelPipeline pipeline) {
     pipeline.addBefore("handler", "mqttEncoder", MqttEncoder.INSTANCE);
     pipeline.addBefore("handler", "mqttDecoder",
@@ -146,10 +145,8 @@ public class MqttServerImpl implements MqttServer {
     // adding the idle state handler for timeout on CONNECT packet
     pipeline.addBefore("handler", "idle", new IdleStateHandler(this.options.timeoutOnConnect(), 0, 0));
     pipeline.addBefore("handler", "timeoutOnConnect", new ChannelDuplexHandler() {
-
       @Override
       public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-
         if (evt instanceof IdleStateEvent e) {
           if (e.state() == IdleState.READER_IDLE) {
             // as MQTT 3.1.1 describes, if no packet is sent after a "reasonable" time (here CONNECT timeout)
@@ -157,9 +154,9 @@ public class MqttServerImpl implements MqttServer {
             ctx.channel().close();
           }
         }
-
         super.userEventTriggered(ctx, evt);
       }
     });
   }
+
 }

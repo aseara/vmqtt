@@ -50,6 +50,8 @@ public interface MqttEndpoint {
    */
   Object getContextInfo(String key);
 
+  void modifyIdleHandler();
+
   /**
    * Close the endpoint, so the connection with remote MQTT client
    */

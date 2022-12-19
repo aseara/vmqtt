@@ -95,7 +95,7 @@ public class MqttEndpointImpl implements MqttEndpoint {
 
   // handler to call when a subscribe request comes in
   private Handler<MqttSubscribeMessage> subscribeHandler;
-  // handler to call when a unsubscribe request comes in
+  // handler to call when an unsubscribe request comes in
   private Handler<MqttUnsubscribeMessage> unsubscribeHandler;
   // handler to call when a publish message comes in
   private Handler<MqttPublishMessage> publishHandler;
@@ -227,6 +227,16 @@ public class MqttEndpointImpl implements MqttEndpoint {
     return contextMap.get(key);
   }
 
+  @Override
+  public void modifyIdleHandler() {
+    synchronized (this.conn) {
+      ChannelPipeline pipeline = this.conn.channelHandlerContext().pipeline();
+      // TODO change idle handler
+      int keepAlive = (int) (keepAliveTimeoutSeconds * 1.5f);
+
+    }
+  }
+
   public boolean isConnected() {
     synchronized (this.conn) {
       return this.isConnected;
@@ -342,7 +352,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
     }
   }
 
-
   public MqttEndpointImpl publishCompletionHandler(Handler<Integer> handler) {
     synchronized (this.conn) {
       this.checkClosed();
@@ -358,7 +367,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
       return this;
     }
   }
-
 
   public MqttEndpointImpl pingHandler(Handler<Void> handler) {
     synchronized (this.conn) {
@@ -385,7 +393,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
   }
 
   private MqttEndpointImpl connack(MqttConnectReturnCode returnCode, boolean sessionPresent, MqttProperties properties) {
-
     MqttFixedHeader fixedHeader =
       new MqttFixedHeader(MqttMessageType.CONNACK, false, MqttQoS.AT_MOST_ONCE, false, 0);
     MqttConnAckVariableHeader variableHeader =
@@ -395,7 +402,7 @@ public class MqttEndpointImpl implements MqttEndpoint {
 
     this.write(connack);
 
-    // if a server sends a CONNACK packet containing a non zero return code it MUST then close the Network Connection (MQTT 3.1.1 spec)
+    // if a server sends a CONNACK packet containing a none zero return code it MUST then close the Network Connection (MQTT 3.1.1 spec)
     if (returnCode != MqttConnectReturnCode.CONNECTION_ACCEPTED) {
       this.close();
     } else {
@@ -419,7 +426,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
       if (this.isConnected) {
         throw new IllegalStateException("Connection already accepted");
       }
-
       return this.connack(MqttConnectReturnCode.CONNECTION_ACCEPTED, sessionPresent, properties);
     }
   }
@@ -429,12 +435,10 @@ public class MqttEndpointImpl implements MqttEndpoint {
   }
 
   public MqttEndpointImpl reject(MqttConnectReturnCode returnCode, MqttProperties properties) {
-
     synchronized (conn) {
       if (returnCode == MqttConnectReturnCode.CONNECTION_ACCEPTED) {
         throw new IllegalArgumentException("Need to use the 'accept' method for accepting connection");
       }
-
       // sessionPresent flag has no meaning in this case, the network connection will be closed
       return this.connack(returnCode, false, properties);
     }
@@ -550,7 +554,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
   }
 
   public MqttEndpointImpl publishComplete(int publishMessageId, MqttPubCompReasonCode reasonCode, MqttProperties properties) {
-
     MqttFixedHeader fixedHeader =
       new MqttFixedHeader(MqttMessageType.PUBCOMP, false, MqttQoS.AT_MOST_ONCE, false, 0);
     MqttMessageIdAndPropertiesVariableHeader variableHeader =

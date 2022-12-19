@@ -36,10 +36,10 @@ public class MqttServerOptions extends NetServerOptions {
 
   public static final int DEFAULT_MAX_MESSAGE_SIZE = -1;
   public static final int DEFAULT_TIMEOUT_ON_CONNECT = 90;
-  public static final int DEFAULT_WEB_SOCKET_MAX_FRAME_SIZE = 65536;
 
 
-  public static final String MQTT_SUBPROTOCOL_CSV_LIST = "mqtt, mqttv3.1, mqttv3.1.1";
+  @SuppressWarnings("unused")
+  public static final String MQTT_SUB_PROTOCOL_CSV_LIST = "mqtt, mqttv3.1, mqttv3.1.1";
 
   // max message size (variable header + payload) in bytes
   private int maxMessageSize;
@@ -51,8 +51,6 @@ public class MqttServerOptions extends NetServerOptions {
   private boolean isAutoClientId;
   // timeout on CONNECT packet
   private int timeoutOnConnect;
-  // max WebSocket frame size
-  private int webSocketMaxFrameSize;
 
   /**
    * Default constructor
@@ -64,7 +62,6 @@ public class MqttServerOptions extends NetServerOptions {
     this.maxMessageSize = DEFAULT_MAX_MESSAGE_SIZE;
     this.isAutoClientId = true;
     this.timeoutOnConnect = DEFAULT_TIMEOUT_ON_CONNECT;
-    this.webSocketMaxFrameSize = DEFAULT_WEB_SOCKET_MAX_FRAME_SIZE;
   }
 
   /**
@@ -79,7 +76,6 @@ public class MqttServerOptions extends NetServerOptions {
     this.maxMessageSize =  json.getInteger("maxMessageSize", DEFAULT_MAX_MESSAGE_SIZE);
     this.isAutoClientId = json.getBoolean("isAutoClientId", true);
     this.timeoutOnConnect = json.getInteger("timeoutOnConnect", DEFAULT_TIMEOUT_ON_CONNECT);
-    this.webSocketMaxFrameSize = json.getInteger("webSocketMaxFrameSize", DEFAULT_WEB_SOCKET_MAX_FRAME_SIZE);
 
     if ((this.maxMessageSize > 0) && (this.getReceiveBufferSize() > 0)) {
       Arguments.require(this.getReceiveBufferSize() >= this.maxMessageSize,
@@ -243,7 +239,7 @@ public class MqttServerOptions extends NetServerOptions {
   /**
    * Set if clientid should be auto-generated when it's "zero-bytes"
    *
-   * @param isAutoClientId
+   * @param isAutoClientId is auto
    * @return  MQTT server options instance
    */
   public MqttServerOptions setAutoClientId(boolean isAutoClientId) {
@@ -310,22 +306,4 @@ public class MqttServerOptions extends NetServerOptions {
     return this.timeoutOnConnect;
   }
 
-  /**
-   * @return the WebSocket max frame size
-   */
-  public int getWebSocketMaxFrameSize() {
-    return webSocketMaxFrameSize;
-  }
-
-  /**
-   * Set the WebSocket max frame size.
-   *
-   * <p> This should be used when WebSocket transport is used and {@link #maxMessageSize} is larger than the WebSocket frame size
-   *
-   * @param webSocketMaxFrameSize the new frame size
-   */
-  public void setWebSocketMaxFrameSize(int webSocketMaxFrameSize) {
-    Arguments.require(webSocketMaxFrameSize > 0, "WebSocket max frame size must be > 0");
-    this.webSocketMaxFrameSize = webSocketMaxFrameSize;
-  }
 }
