@@ -7,6 +7,8 @@ import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.WeakHashMap;
+
 import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.CONNECTION_ACCEPTED;
 import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.CONNECTION_REFUSED_SERVER_UNAVAILABLE;
 import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.CONNECTION_REFUSED_UNACCEPTABLE_PROTOCOL_VERSION;
@@ -15,6 +17,8 @@ import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.CONNECTION_REFUS
 public class ConnectProcessor extends RequestProcessor<MqttEndpoint> {
 
     private final AuthService authService;
+
+    private final WeakHashMap<String, MqttEndpoint> endpointMap = new WeakHashMap<>();
 
     public ConnectProcessor(AuthService authService) {
         this.authService = authService;
@@ -34,12 +38,10 @@ public class ConnectProcessor extends RequestProcessor<MqttEndpoint> {
         }
 
         // 1. auth
-        // 2. keep alive
         // 3. previous client
         // 4. session
         // 5. will
         return  auth(endpoint)
-                .onSuccess(r -> updateKeepAliveTime(endpoint))
                 .onSuccess(r -> checkPrevious(endpoint))
                 .onSuccess(r -> storeWill(endpoint))
                 .onSuccess(r -> storeSession(endpoint))
@@ -70,13 +72,13 @@ public class ConnectProcessor extends RequestProcessor<MqttEndpoint> {
         return promise.future();
     }
 
-    private void updateKeepAliveTime(MqttEndpoint endpoint) {
-        log.info("[keep alive timeout = " + endpoint.keepAliveTimeSeconds() + "]");
-        endpoint.modifyIdleHandler();
-    }
-
     private void checkPrevious(MqttEndpoint endpoint) {
-        // TODO check previous client
+        MqttEndpoint pre = endpointMap.get(endpoint.clientIdentifier());
+        if (pre != null && pre.isConnected()) {
+            log.info("[CONNECT] ->{},client= {}, previous connection need to be closed as new connection accepted",
+                    pre.remoteAddress(), pre.clientIdentifier());
+            pre.close();
+        }
     }
 
     private void storeSession(MqttEndpoint endpoint) {
@@ -86,15 +88,20 @@ public class ConnectProcessor extends RequestProcessor<MqttEndpoint> {
 
     private void storeWill(MqttEndpoint endpoint) {
         if (endpoint.will() != null && endpoint.will().isWillFlag()) {
-            log.info("[will topic = " + endpoint.will().getWillTopic() + " msg = " + new String(endpoint.will().getWillMessageBytes()) +
-                    " QoS = " + endpoint.will().getWillQos() + " isRetain = " + endpoint.will().isWillRetain() + "]");
+            log.info("[will topic = " + endpoint.will().getWillTopic() + " msg = " +
+                    new String(endpoint.will().getWillMessageBytes()) +
+                    " QoS = " + endpoint.will().getWillQos() + " isRetain = " +
+                    endpoint.will().isWillRetain() + "]");
         }
-        // TODO store will
     }
 
     private MqttEndpoint accept(MqttEndpoint endpoint) {
         endpoint.accept();
-        // TODO do something after accept
+        log.info("[CONNECT] ->{},client= {}, connect to this mqtt server success",
+                endpoint.remoteAddress(), endpoint.clientIdentifier());
+        endpointMap.put(endpoint.clientIdentifier(), endpoint);
+        // TODO redis record connection to current mqtt server
+        // TODO gauge record
         return endpoint;
     }
 

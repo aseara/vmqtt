@@ -273,7 +273,6 @@ public class MqttServerConnection {
         this.endpoint.reject(MqttConnectReturnCode.CONNECTION_REFUSED_IDENTIFIER_REJECTED);
       }
     } else {
-
       // an exception at connection level is propagated to the endpoint
       this.so.exceptionHandler(this.endpoint::handleException);
 

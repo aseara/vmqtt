@@ -129,7 +129,7 @@ public class MqttEndpointImpl implements MqttEndpoint {
   private boolean isSubscriptionAutoAck;
   // if the endpoint handles publishing (in/out) with auto acknowledge
   private boolean isPublishAutoAck;
-  // if the endpoint should sends the pingresp automatically
+  // if the endpoint should send the ping response automatically
   private boolean isAutoKeepAlive = true;
 
   /**
@@ -139,7 +139,7 @@ public class MqttEndpointImpl implements MqttEndpoint {
    * @param clientIdentifier     client identifier of the remote
    * @param auth                 instance with the authentication information
    * @param will                 instance with the will information
-   * @param isCleanSession       if the sessione should be cleaned or not
+   * @param isCleanSession       if the session should be cleaned or not
    * @param protocolVersion      protocol version required by the client
    * @param protocolName         protocol name sent by the client
    * @param keepAliveTimeoutSeconds keep alive timeout (in seconds)
@@ -225,16 +225,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
   @Override
   public Object getContextInfo(String key) {
     return contextMap.get(key);
-  }
-
-  @Override
-  public void modifyIdleHandler() {
-    synchronized (this.conn) {
-      ChannelPipeline pipeline = this.conn.channelHandlerContext().pipeline();
-      // TODO change idle handler
-      int keepAlive = (int) (keepAliveTimeoutSeconds * 1.5f);
-
-    }
   }
 
   public boolean isConnected() {
@@ -480,13 +470,14 @@ public class MqttEndpointImpl implements MqttEndpoint {
     MqttMessageIdAndPropertiesVariableHeader variableHeader =
       new MqttMessageIdAndPropertiesVariableHeader(unsubscribeMessageId, properties);
 
-    short[] reasoneCodesNum = new short[reasonCodes.size()];
-    for(int i = 0; i < reasoneCodesNum.length; i++) {
-      reasoneCodesNum[i] = reasonCodes.get(i).value();
+    short[] reasonCodesNum = new short[reasonCodes.size()];
+    for(int i = 0; i < reasonCodesNum.length; i++) {
+      reasonCodesNum[i] = reasonCodes.get(i).value();
     }
-    MqttUnsubAckPayload payload = new MqttUnsubAckPayload(reasoneCodesNum);
+    MqttUnsubAckPayload payload = new MqttUnsubAckPayload(reasonCodesNum);
 
-    io.netty.handler.codec.mqtt.MqttMessage unsuback = MqttMessageFactory.newMessage(fixedHeader, variableHeader, payload);
+    io.netty.handler.codec.mqtt.MqttMessage unsuback =
+            MqttMessageFactory.newMessage(fixedHeader, variableHeader, payload);
 
     this.write(unsuback);
 
@@ -795,7 +786,7 @@ public class MqttEndpointImpl implements MqttEndpoint {
   }
 
   /**
-   * Used internally for handling the pinreq from the remote MQTT client
+   * Used internally for handling the pingreq from the remote MQTT client
    */
   void handlePingreq() {
     synchronized (this.conn) {
