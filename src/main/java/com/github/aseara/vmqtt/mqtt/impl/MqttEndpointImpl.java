@@ -20,29 +20,51 @@ import com.github.aseara.vmqtt.mqtt.MqttAuth;
 import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
 import com.github.aseara.vmqtt.mqtt.MqttTopicSubscription;
 import com.github.aseara.vmqtt.mqtt.MqttWill;
+import com.github.aseara.vmqtt.mqtt.messages.MqttDisconnectMessage;
 import com.github.aseara.vmqtt.mqtt.messages.MqttPubAckMessage;
+import com.github.aseara.vmqtt.mqtt.messages.MqttPubCompMessage;
+import com.github.aseara.vmqtt.mqtt.messages.MqttPubRecMessage;
+import com.github.aseara.vmqtt.mqtt.messages.MqttPubRelMessage;
 import com.github.aseara.vmqtt.mqtt.messages.MqttPublishMessage;
 import com.github.aseara.vmqtt.mqtt.messages.MqttSubscribeMessage;
 import com.github.aseara.vmqtt.mqtt.messages.MqttUnsubscribeMessage;
-import com.github.aseara.vmqtt.mqtt.messages.*;
-import com.github.aseara.vmqtt.mqtt.messages.codes.*;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttDisconnectReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubAckReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubCompReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubRecReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubRelReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttSubAckReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttUnsubAckReasonCode;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.mqtt.*;
+import io.netty.handler.codec.mqtt.MqttConnAckVariableHeader;
+import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
+import io.netty.handler.codec.mqtt.MqttFixedHeader;
+import io.netty.handler.codec.mqtt.MqttMessageFactory;
+import io.netty.handler.codec.mqtt.MqttMessageIdAndPropertiesVariableHeader;
+import io.netty.handler.codec.mqtt.MqttMessageType;
+import io.netty.handler.codec.mqtt.MqttProperties;
+import io.netty.handler.codec.mqtt.MqttPubReplyMessageVariableHeader;
+import io.netty.handler.codec.mqtt.MqttPublishVariableHeader;
+import io.netty.handler.codec.mqtt.MqttQoS;
+import io.netty.handler.codec.mqtt.MqttReasonCodeAndPropertiesVariableHeader;
+import io.netty.handler.codec.mqtt.MqttSubAckPayload;
+import io.netty.handler.codec.mqtt.MqttUnsubAckPayload;
+import io.netty.handler.codec.mqtt.MqttVersion;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.impl.logging.Logger;
-import io.vertx.core.impl.logging.LoggerFactory;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.net.impl.NetSocketInternal;
 
 import javax.net.ssl.SSLSession;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 /**
@@ -50,9 +72,9 @@ import java.util.stream.Collectors;
  */
 public class MqttEndpointImpl implements MqttEndpoint {
 
-  private static final int MAX_MESSAGE_ID = 65535;
+  private final ConcurrentMap<String, Object> contextMap = new ConcurrentHashMap<>();
 
-  private static final Logger log = LoggerFactory.getLogger(MqttEndpointImpl.class);
+  private static final int MAX_MESSAGE_ID = 65535;
 
   // connection to the remote MQTT client
   private final NetSocketInternal conn;
@@ -69,7 +91,7 @@ public class MqttEndpointImpl implements MqttEndpoint {
 
   // information about connected remote MQTT client (from WebSocket handshake)
   private final MultiMap httpHeaders;
-  private String httpRequestUri;
+  private final String httpRequestUri;
 
   // handler to call when a subscribe request comes in
   private Handler<MqttSubscribeMessage> subscribeHandler;
@@ -178,7 +200,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
   }
 
   public MqttEndpoint publishAutoAck(boolean isPublishAutoAck) {
-
     this.isPublishAutoAck = isPublishAutoAck;
     return this;
   }
@@ -188,13 +209,22 @@ public class MqttEndpointImpl implements MqttEndpoint {
   }
 
   public MqttEndpoint autoKeepAlive(boolean isAutoKeepAlive) {
-
     this.isAutoKeepAlive = isAutoKeepAlive;
     return this;
   }
 
   public boolean isAutoKeepAlive() {
     return this.isAutoKeepAlive;
+  }
+
+  @Override
+  public void putContextInfo(String key, Object info) {
+    contextMap.put(key, info);
+  }
+
+  @Override
+  public Object getContextInfo(String key) {
+    return contextMap.get(key);
   }
 
   public boolean isConnected() {
@@ -215,7 +245,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
   }
 
   public MqttEndpoint setClientIdentifier(String clientIdentifier) {
-
     synchronized (this.conn) {
       this.clientIdentifier = clientIdentifier;
     }
@@ -223,7 +252,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
   }
 
   public MqttEndpointImpl disconnectHandler(Handler<Void> handler) {
-
     synchronized (this.conn) {
       this.checkClosed();
       this.disconnectHandler = handler;
@@ -241,7 +269,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
 
 
   public MqttEndpointImpl subscribeHandler(Handler<MqttSubscribeMessage> handler) {
-
     synchronized (this.conn) {
       this.checkClosed();
       this.subscribeHandler = handler;
@@ -250,7 +277,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
   }
 
   public MqttEndpointImpl unsubscribeHandler(Handler<MqttUnsubscribeMessage> handler) {
-
     synchronized (this.conn) {
       this.checkClosed();
       this.unsubscribeHandler = handler;
@@ -259,7 +285,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
   }
 
   public MqttEndpointImpl publishHandler(Handler<MqttPublishMessage> handler) {
-
     synchronized (this.conn) {
       this.checkClosed();
       this.publishHandler = handler;
@@ -268,7 +293,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
   }
 
   public MqttEndpointImpl publishAcknowledgeHandler(Handler<Integer> handler) {
-
     synchronized (this.conn) {
       this.checkClosed();
       this.pubackHandler = handler;
@@ -286,7 +310,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
 
 
   public MqttEndpointImpl publishReceivedHandler(Handler<Integer> handler) {
-
     synchronized (this.conn) {
       this.checkClosed();
       this.pubrecHandler = handler;
@@ -304,7 +327,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
 
 
   public MqttEndpointImpl publishReleaseHandler(Handler<Integer> handler) {
-
     synchronized (this.conn) {
       this.checkClosed();
       this.pubrelHandler = handler;
@@ -322,7 +344,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
 
 
   public MqttEndpointImpl publishCompletionHandler(Handler<Integer> handler) {
-
     synchronized (this.conn) {
       this.checkClosed();
       this.pubcompHandler = handler;
@@ -340,7 +361,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
 
 
   public MqttEndpointImpl pingHandler(Handler<Void> handler) {
-
     synchronized (this.conn) {
       this.checkClosed();
       this.pingreqHandler = handler;
@@ -349,7 +369,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
   }
 
   public MqttEndpointImpl closeHandler(Handler<Void> handler) {
-
     synchronized (this.conn) {
       this.checkClosed();
       this.closeHandler = handler;
@@ -358,7 +377,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
   }
 
   public MqttEndpointImpl exceptionHandler(Handler<Throwable> handler) {
-
     synchronized (this.conn) {
       this.checkClosed();
       this.exceptionHandler = handler;
@@ -681,23 +699,15 @@ public class MqttEndpointImpl implements MqttEndpoint {
    * @param msg published message
    */
   void handlePublish(MqttPublishMessage msg) {
-
     synchronized (this.conn) {
       if (this.publishHandler != null) {
         this.publishHandler.handle(msg);
       }
 
       if (this.isPublishAutoAck) {
-
         switch (msg.qosLevel()) {
-
-          case AT_LEAST_ONCE:
-            this.publishAcknowledge(msg.messageId());
-            break;
-
-          case EXACTLY_ONCE:
-            this.publishReceived(msg.messageId());
-            break;
+          case AT_LEAST_ONCE -> this.publishAcknowledge(msg.messageId());
+          case EXACTLY_ONCE -> this.publishReceived(msg.messageId());
         }
       }
     }
@@ -711,7 +721,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
    * @param properties MQTT properties
    */
   void handlePuback(int pubackMessageId, MqttPubAckReasonCode code, MqttProperties properties) {
-
     synchronized (this.conn) {
       if (this.pubackHandler != null) {
         this.pubackHandler.handle(pubackMessageId);
@@ -752,7 +761,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
    * @param properties MQTT message properties
    */
   void handlePubrel(int pubrelMessageId, MqttPubRelReasonCode code, MqttProperties properties) {
-
     synchronized (this.conn) {
       if (this.pubrelHandler != null) {
         this.pubrelHandler.handle(pubrelMessageId);
@@ -787,9 +795,7 @@ public class MqttEndpointImpl implements MqttEndpoint {
    * Used internally for handling the pinreq from the remote MQTT client
    */
   void handlePingreq() {
-
     synchronized (this.conn) {
-
       if (this.pingreqHandler != null) {
         this.pingreqHandler.handle(null);
       }
@@ -806,7 +812,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
    * @param properties MQTT message properties
    */
   void handleDisconnect(MqttDisconnectReasonCode code, MqttProperties properties) {
-
     synchronized (this.conn) {
       if (this.disconnectHandler != null) {
         this.disconnectHandler.handle(null);
@@ -823,10 +828,8 @@ public class MqttEndpointImpl implements MqttEndpoint {
    * Used for calling the close handler when the remote MQTT client closes the connection
    */
   void handleClosed() {
-
     synchronized (this.conn) {
       this.cleanup();
-
       if (this.closeHandler != null) {
         this.closeHandler.handle(null);
       }
@@ -839,7 +842,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
    * @param t exception raised
    */
   void handleException(Throwable t) {
-
     synchronized (this.conn) {
       if (this.exceptionHandler != null) {
         this.exceptionHandler.handle(t);
@@ -848,7 +850,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
   }
 
   public void close() {
-
     synchronized (this.conn) {
       checkClosed();
       this.conn.close();

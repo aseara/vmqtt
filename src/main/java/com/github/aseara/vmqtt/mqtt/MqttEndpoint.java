@@ -37,6 +37,20 @@ import java.util.List;
 public interface MqttEndpoint {
 
   /**
+   * add context info
+   * @param key  key
+   * @param info value
+   */
+  void putContextInfo(String key, Object info);
+
+  /**
+   * get context info
+   * @param key key
+   * @return value
+   */
+  Object getContextInfo(String key);
+
+  /**
    * Close the endpoint, so the connection with remote MQTT client
    */
   void close();
