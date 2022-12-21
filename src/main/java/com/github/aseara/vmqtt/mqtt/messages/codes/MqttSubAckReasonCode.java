@@ -33,19 +33,11 @@ public enum MqttSubAckReasonCode implements MqttReasonCode {
     }
 
     public static MqttSubAckReasonCode qosGranted(MqttQoS qos) {
-        switch (qos) {
-            case AT_MOST_ONCE: return MqttSubAckReasonCode.GRANTED_QOS0;
-            case AT_LEAST_ONCE: return MqttSubAckReasonCode.GRANTED_QOS1;
-            case EXACTLY_ONCE: return MqttSubAckReasonCode.GRANTED_QOS2;
-            case FAILURE: return MqttSubAckReasonCode.UNSPECIFIED_ERROR;
-            default: return MqttSubAckReasonCode.UNSPECIFIED_ERROR;
-        }
-    }
-
-    public MqttSubAckReasonCode limitForMqttVersion(MqttVersion version) {
-        if(version != MqttVersion.MQTT_5 && byteValue > UNSPECIFIED_ERROR.byteValue)
-            return UNSPECIFIED_ERROR;
-        else
-            return this;
+        return switch (qos) {
+            case AT_MOST_ONCE -> MqttSubAckReasonCode.GRANTED_QOS0;
+            case AT_LEAST_ONCE -> MqttSubAckReasonCode.GRANTED_QOS1;
+            case EXACTLY_ONCE -> MqttSubAckReasonCode.GRANTED_QOS2;
+            default -> MqttSubAckReasonCode.UNSPECIFIED_ERROR;
+        };
     }
 }

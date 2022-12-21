@@ -126,9 +126,9 @@ public class MqttEndpointImpl implements MqttEndpoint {
   // counter for the message identifier
   private int messageIdCounter;
   // if the endpoint handles subscription/unsubscription requests with auto acknowledge
-  private boolean isSubscriptionAutoAck;
+  private boolean isSubscriptionAutoAck = true;
   // if the endpoint handles publishing (in/out) with auto acknowledge
-  private boolean isPublishAutoAck;
+  private boolean isPublishAutoAck = true;
   // if the endpoint should send the ping response automatically
   private boolean isAutoKeepAlive = true;
 

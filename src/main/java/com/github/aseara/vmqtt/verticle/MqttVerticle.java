@@ -6,7 +6,7 @@ import com.github.aseara.vmqtt.conf.MqttConfig;
 import com.github.aseara.vmqtt.exception.MqttExceptionHandler;
 import com.github.aseara.vmqtt.handler.CloseHandler;
 import com.github.aseara.vmqtt.handler.EndpointHandler;
-import com.github.aseara.vmqtt.message.SubTrie;
+import com.github.aseara.vmqtt.subscribe.SubscriptionTrie;
 import com.github.aseara.vmqtt.mqtt.MqttServer;
 import com.github.aseara.vmqtt.mqtt.MqttServerOptions;
 import com.github.aseara.vmqtt.processor.protocol.ConnectProcessor;
@@ -18,7 +18,7 @@ import com.github.aseara.vmqtt.processor.protocol.PubRelProcessor;
 import com.github.aseara.vmqtt.processor.protocol.PublishProcessor;
 import com.github.aseara.vmqtt.processor.protocol.SubscribeProcessor;
 import com.github.aseara.vmqtt.processor.protocol.UnSubscribeProcessor;
-import com.github.aseara.vmqtt.storage.MemoryStorage;
+import com.github.aseara.vmqtt.retain.RetainMessageStorage;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import lombok.extern.slf4j.Slf4j;
@@ -31,9 +31,9 @@ public class MqttVerticle extends AbstractVerticle {
 
     private final MqttConfig config;
 
-    private final SubTrie subscriptions;
+    private final SubscriptionTrie subscriptionTrie;
 
-    private final MemoryStorage storage;
+    private final RetainMessageStorage storage;
 
     private EndpointHandler endpointHandler;
 
@@ -45,8 +45,8 @@ public class MqttVerticle extends AbstractVerticle {
 
     public MqttVerticle(MqttConfig config) {
         this.config = config;
-        this.subscriptions = new SubTrie();
-        this.storage = new MemoryStorage();
+        this.subscriptionTrie = new SubscriptionTrie();
+        this.storage = new RetainMessageStorage();
     }
 
     @Override
@@ -78,8 +78,6 @@ public class MqttVerticle extends AbstractVerticle {
         });
     }
 
-
-
     @Override
     public void stop(Promise<Void> stopPromise) {
         FutureUtil.listAll(mqttServers, MqttServer::close, ar -> {
@@ -104,13 +102,13 @@ public class MqttVerticle extends AbstractVerticle {
 
         handler.setConnectProcessor(new ConnectProcessor(authService));
         handler.setDisconnectProcessor(new DisconnectProcessor());
-        handler.setPublishProcessor(new PublishProcessor(storage, subscriptions));
+        handler.setPublishProcessor(new PublishProcessor(storage, subscriptionTrie));
         handler.setPubAckProcessor(new PubAckProcessor());
         handler.setPubRecProcessor(new PubRecProcessor());
         handler.setPubRelProcessor(new PubRelProcessor());
         handler.setPubCompProcessor(new PubCompProcessor());
-        handler.setSubscribeProcessor(new SubscribeProcessor());
-        handler.setUnSubscribeProcessor(new UnSubscribeProcessor());
+        handler.setSubscribeProcessor(new SubscribeProcessor(subscriptionTrie));
+        handler.setUnSubscribeProcessor(new UnSubscribeProcessor(subscriptionTrie));
         handler.setExceptionHandler(exceptionHandler);
         handler.setCloseHandler(closeHandler);
 

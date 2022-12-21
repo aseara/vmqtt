@@ -9,6 +9,7 @@ public class PubCompProcessor extends RequestProcessor<MqttPubCompMessage> {
 
     @Override
     public Future<MqttEndpoint> processInternal(MqttEndpoint endpoint, MqttPubCompMessage message) {
+        //
         return null;
     }
 }
