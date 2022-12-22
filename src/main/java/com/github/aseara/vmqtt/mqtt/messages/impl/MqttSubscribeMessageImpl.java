@@ -41,9 +41,9 @@ public class MqttSubscribeMessageImpl implements MqttSubscribeMessage {
    */
   public MqttSubscribeMessageImpl(int messageId, List<io.netty.handler.codec.mqtt.MqttTopicSubscription> topicSubscriptions, MqttProperties properties) {
     this.messageId = messageId;
-    this.topicSubscriptions = topicSubscriptions.stream().map(ts -> {
-      return new MqttTopicSubscriptionImpl(ts.topicName(), ts.option());
-    }).collect(Collectors.toList());
+    this.topicSubscriptions = topicSubscriptions.stream()
+            .map(ts -> new MqttTopicSubscriptionImpl(ts.topicName(), ts.option()))
+            .collect(Collectors.toList());
     this.properties = properties;
   }
 

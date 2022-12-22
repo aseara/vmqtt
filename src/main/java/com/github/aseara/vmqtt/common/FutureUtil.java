@@ -19,7 +19,7 @@ public class FutureUtil {
      * @param <T>                列表元素类型
      */
     @SuppressWarnings("rawtypes")
-    public  static <T> void listAll(
+    public static <T> void listAll(
             List<T> list, Function<T, Future> op,
             Handler<AsyncResult<CompositeFuture>> resultHandler) {
         if (list == null || list.size() == 0) {

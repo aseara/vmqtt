@@ -7,6 +7,7 @@ import com.github.aseara.vmqtt.mqtt.messages.MqttUnsubscribeMessage;
 import com.github.aseara.vmqtt.processor.RequestProcessor;
 import io.vertx.core.Future;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
 
 @Slf4j
 public class UnSubscribeProcessor extends RequestProcessor<MqttUnsubscribeMessage> {
@@ -18,13 +19,19 @@ public class UnSubscribeProcessor extends RequestProcessor<MqttUnsubscribeMessag
     }
 
     @Override
-    public Future<MqttEndpoint> processInternal(MqttEndpoint endpoint, MqttUnsubscribeMessage unsubscribe) {
-        for (String t: unsubscribe.topics()) {
+    public Future<MqttEndpoint> processInternal(MqttEndpoint endpoint, MqttUnsubscribeMessage msg) {
+        for (String t: msg.topics()) {
             Subscriber unsub = Subscriber.of(endpoint, t);
             if (subscriptionTrie.unsubscribe(unsub)) {
                 log.info("Unsubscription for " + t);
             }
         }
+        endpoint.unsubscribeAcknowledge(msg.messageId());
         return Future.succeededFuture(endpoint);
+    }
+
+    @Override
+    protected Logger getLog() {
+        return log;
     }
 }

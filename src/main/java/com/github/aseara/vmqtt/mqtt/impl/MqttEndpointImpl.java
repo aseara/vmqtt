@@ -126,7 +126,7 @@ public class MqttEndpointImpl implements MqttEndpoint {
   // counter for the message identifier
   private int messageIdCounter;
   // if the endpoint handles subscription/unsubscription requests with auto acknowledge
-  private boolean isSubscriptionAutoAck = true;
+  private boolean isSubscriptionAutoAck = false;
   // if the endpoint handles publishing (in/out) with auto acknowledge
   private boolean isPublishAutoAck = true;
   // if the endpoint should send the ping response automatically
@@ -225,6 +225,11 @@ public class MqttEndpointImpl implements MqttEndpoint {
   @Override
   public Object getContextInfo(String key) {
     return contextMap.get(key);
+  }
+
+  @Override
+  public boolean removeContextInfo(String key) {
+    return contextMap.remove(key) != null;
   }
 
   public boolean isConnected() {

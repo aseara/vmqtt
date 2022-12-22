@@ -51,6 +51,13 @@ public interface MqttEndpoint {
   Object getContextInfo(String key);
 
   /**
+   * remove context info
+   * @param key key
+   * @return value
+   */
+  boolean removeContextInfo(String key);
+
+  /**
    * Close the endpoint, so the connection with remote MQTT client
    */
   void close();

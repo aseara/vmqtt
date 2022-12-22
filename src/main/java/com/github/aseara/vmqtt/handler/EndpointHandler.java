@@ -45,13 +45,15 @@ public class EndpointHandler implements Handler<MqttEndpoint> {
 
     @Override
     public void handle(MqttEndpoint endpoint) {
-        connectProcessor.processMessage(endpoint, endpoint).onFailure(t -> {
-            log.error("error occurred in processing connect: ", t);
-            if (!endpoint.isClosed()) {
-                endpoint.reject(CONNECTION_REFUSED_SERVER_UNAVAILABLE);
+        connectProcessor.processMessage(endpoint, ar -> {
+            if (ar.failed()) {
+                log.error("error occurred in processing connect: ", ar.cause());
+                if (!endpoint.isClosed()) {
+                    endpoint.reject(CONNECTION_REFUSED_SERVER_UNAVAILABLE);
+                }
+                return;
             }
-        }).onSuccess(e -> {
-            if (!e.isConnected()) {
+            if (!endpoint.isConnected()) {
                 return;
             }
             // add message process after connect been accepted

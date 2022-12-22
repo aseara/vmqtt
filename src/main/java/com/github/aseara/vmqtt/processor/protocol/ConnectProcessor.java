@@ -3,9 +3,12 @@ package com.github.aseara.vmqtt.processor.protocol;
 import com.github.aseara.vmqtt.auth.AuthService;
 import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
 import com.github.aseara.vmqtt.processor.RequestProcessor;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
 
 import java.util.WeakHashMap;
 
@@ -24,9 +27,18 @@ public class ConnectProcessor extends RequestProcessor<MqttEndpoint> {
         this.authService = authService;
     }
 
+    public final void processMessage(MqttEndpoint endpoint, Handler<AsyncResult<MqttEndpoint>> handler) {
+        processMessage(endpoint, endpoint, handler);
+    }
+
     @Override
     public Future<MqttEndpoint> processInternal(MqttEndpoint endpoint, MqttEndpoint redundant) {
         return processConnect(endpoint);
+    }
+
+    @Override
+    protected Logger getLog() {
+        return log;
     }
 
     private Future<MqttEndpoint> processConnect(MqttEndpoint endpoint) {

@@ -6,6 +6,7 @@ import com.github.aseara.vmqtt.mqtt.messages.codes.MqttDisconnectReasonCode;
 import com.github.aseara.vmqtt.processor.RequestProcessor;
 import io.vertx.core.Future;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
 
 import static com.github.aseara.vmqtt.common.MqttConstants.DISCONNECT_KEY;
 import static com.github.aseara.vmqtt.mqtt.messages.codes.MqttDisconnectReasonCode.NORMAL;
@@ -19,5 +20,10 @@ public class DisconnectProcessor extends RequestProcessor<MqttDisconnectMessage>
         log.info("endpoint [{}] disconnected, code: {}", endpoint.clientIdentifier(), code);
         endpoint.putContextInfo(DISCONNECT_KEY, code);
         return Future.succeededFuture(endpoint);
+    }
+
+    @Override
+    protected Logger getLog() {
+        return log;
     }
 }
