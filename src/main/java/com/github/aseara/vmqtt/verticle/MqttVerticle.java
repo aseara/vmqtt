@@ -99,14 +99,13 @@ public class MqttVerticle extends AbstractVerticle {
         AuthService authService = new AuthService();
 
         EndpointHandler handler = new EndpointHandler();
-
         handler.setConnectProcessor(new ConnectProcessor(authService));
         handler.setDisconnectProcessor(new DisconnectProcessor());
-        handler.setPublishProcessor(new PublishProcessor(storage, subscriptionTrie));
-        handler.setPubAckProcessor(new PubAckProcessor());
-        handler.setPubRecProcessor(new PubRecProcessor());
+        handler.setPublishProcessor(new PublishProcessor(vertx, storage, subscriptionTrie));
+        handler.setPubAckProcessor(new PubAckProcessor(vertx));
+        handler.setPubRecProcessor(new PubRecProcessor(vertx));
         handler.setPubRelProcessor(new PubRelProcessor());
-        handler.setPubCompProcessor(new PubCompProcessor());
+        handler.setPubCompProcessor(new PubCompProcessor(vertx));
         handler.setSubscribeProcessor(new SubscribeProcessor(subscriptionTrie));
         handler.setUnSubscribeProcessor(new UnSubscribeProcessor(subscriptionTrie));
         handler.setExceptionHandler(exceptionHandler);

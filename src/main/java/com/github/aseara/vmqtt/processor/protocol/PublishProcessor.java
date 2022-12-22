@@ -11,31 +11,36 @@ import com.github.aseara.vmqtt.subscribe.Subscriber;
 import com.github.aseara.vmqtt.subscribe.SubscriptionTrie;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.core.Future;
+import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 
-import java.nio.charset.Charset;
 import java.util.List;
 
 import static com.github.aseara.vmqtt.common.MqttConstants.MESSAGE_STATUS_KEY;
+import static com.github.aseara.vmqtt.common.MqttConstants.RESEND_MESSAGE_KEY;
 
 @Slf4j
 public class PublishProcessor extends RequestProcessor<MqttPublishMessage> {
+
+    private final Vertx vertx;
 
     private final RetainMessageStorage retainStorage;
 
     private final SubscriptionTrie subscriptionTrie;
 
-    public PublishProcessor(RetainMessageStorage retainStorage, SubscriptionTrie subscriptionTrie) {
+    public PublishProcessor(Vertx vertx, RetainMessageStorage retainStorage, SubscriptionTrie subscriptionTrie) {
+        this.vertx = vertx;
         this.retainStorage = retainStorage;
         this.subscriptionTrie = subscriptionTrie;
     }
 
     @Override
     public Future<MqttEndpoint> processInternal(MqttEndpoint endpoint, MqttPublishMessage message) {
-        log.info("Just received {} message [{}] with QoS [{}], Dup [{}], Retain [{}]",
+        log.info("Just received {} message [len:{}] with QoS [{}], Dup [{}], Retain [{}]",
                 message.topicName(),
-                message.payload().toString(Charset.defaultCharset()),
+                message.payload().length(),
                 message.qosLevel(),
                 message.isDup(),
                 message.isRetain());
@@ -78,14 +83,45 @@ public class PublishProcessor extends RequestProcessor<MqttPublishMessage> {
 
         List<Subscriber> subscribers = subscriptionTrie.lookup(topic);
 
+        Buffer payload = Buffer.buffer(message.payload().getBytes());
+
         subscribers.forEach(sub -> {
             MqttEndpoint subEndpoint = sub.getEndpoint().get();
             if (subEndpoint != null) {
                 MqttQoS sendQos = message.qosLevel().value() > sub.getQos().value() ?
                         sub.getQos() : message.qosLevel();
-                subEndpoint.publish(topic, message.payload(), sendQos, message.isDup(), message.isRetain());
+                dispatchMessage(subEndpoint, topic, payload, sendQos, message.isRetain());
             }
         });
+    }
+
+    private void dispatchMessage(MqttEndpoint sub, String topic, Buffer buf,
+                                 MqttQoS qos, boolean retain) {
+        int messageId = sub.nextMessageId();
+        sub.publish(topic, buf, qos, false, retain, messageId).onComplete(ar -> {
+            if (ar.succeeded()) {
+                log.info("send message success");
+            } else {
+                log.error("send message failed: ", ar.cause());
+            }
+        });
+        if (qos.value() > MqttQoS.AT_MOST_ONCE.value()) {
+            // set resend message timer
+            long timeId = vertx.setPeriodic(60, id -> {
+                if (sub.isClosed()) {
+                    vertx.cancelTimer(id);
+                    return;
+                }
+                sub.publish(topic, buf, qos, true, retain, messageId).onComplete(ar -> {
+                    if (ar.succeeded()) {
+                        log.info("send message success");
+                    } else {
+                        log.error("send message failed: ", ar.cause());
+                    }
+                });
+            });
+            sub.putContextInfo(RESEND_MESSAGE_KEY + messageId, timeId);
+        }
     }
 
 }

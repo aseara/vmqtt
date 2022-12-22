@@ -583,4 +583,11 @@ public interface MqttEndpoint {
    * @return a reference to this, so the API can be used fluently
    */
   MqttEndpoint disconnect(MqttDisconnectReasonCode code, MqttProperties properties);
+
+  /**
+   * Update and return the next message identifier
+   *
+   * @return message identifier
+   */
+  public int nextMessageId();
 }

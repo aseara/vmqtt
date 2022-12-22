@@ -65,6 +65,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -124,7 +125,7 @@ public class MqttEndpointImpl implements MqttEndpoint {
   private boolean isConnected;
   private boolean isClosed;
   // counter for the message identifier
-  private int messageIdCounter;
+  private final AtomicInteger messageIdCounter = new AtomicInteger(1);
   // if the endpoint handles subscription/unsubscription requests with auto acknowledge
   private boolean isSubscriptionAutoAck = false;
   // if the endpoint handles publishing (in/out) with auto acknowledge
@@ -188,7 +189,7 @@ public class MqttEndpointImpl implements MqttEndpoint {
   }
 
   public int lastMessageId() {
-    return this.messageIdCounter;
+    return this.messageIdCounter.get();
   }
 
   public void subscriptionAutoAck(boolean isSubscriptionAutoAck) {
@@ -944,10 +945,15 @@ public class MqttEndpointImpl implements MqttEndpoint {
    *
    * @return message identifier
    */
-  private int nextMessageId() {
-
-    // if 0 or MAX_MESSAGE_ID, it becomes 1 (first valid messageId)
-    this.messageIdCounter = ((this.messageIdCounter % MAX_MESSAGE_ID) != 0) ? this.messageIdCounter + 1 : 1;
-    return this.messageIdCounter;
+  @Override
+  public int nextMessageId() {
+    int id = messageIdCounter.getAndIncrement();
+    if (id >= MAX_MESSAGE_ID) {
+      // if id bigger than MAX_MESSAGE_ID, it becomes 1 (first valid messageId), skip 0
+      int oid = messageIdCounter.getAndIncrement();
+      id = id -MAX_MESSAGE_ID;
+      messageIdCounter.compareAndSet(oid + 1, id + 1);
+    }
+    return id;
   }
 }
