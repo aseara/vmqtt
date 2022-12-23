@@ -20,8 +20,9 @@ public class UnSubscribeProcessor extends RequestProcessor<MqttUnsubscribeMessag
 
     @Override
     public Future<MqttEndpoint> processInternal(MqttEndpoint endpoint, MqttUnsubscribeMessage msg) {
+        // TODO delete session sub store
         for (String t: msg.topics()) {
-            Subscriber unsub = Subscriber.of(endpoint, t);
+            Subscriber unsub = Subscriber.of(endpoint.clientIdentifier(), t);
             if (subscriptionTrie.unsubscribe(unsub)) {
                 log.info("Unsubscription for " + t);
             }

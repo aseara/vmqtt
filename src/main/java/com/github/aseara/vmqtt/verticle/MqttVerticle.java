@@ -6,19 +6,14 @@ import com.github.aseara.vmqtt.conf.MqttConfig;
 import com.github.aseara.vmqtt.exception.MqttExceptionHandler;
 import com.github.aseara.vmqtt.handler.CloseHandler;
 import com.github.aseara.vmqtt.handler.EndpointHandler;
-import com.github.aseara.vmqtt.subscribe.SubscriptionTrie;
+import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
 import com.github.aseara.vmqtt.mqtt.MqttServer;
 import com.github.aseara.vmqtt.mqtt.MqttServerOptions;
-import com.github.aseara.vmqtt.processor.protocol.ConnectProcessor;
-import com.github.aseara.vmqtt.processor.protocol.DisconnectProcessor;
-import com.github.aseara.vmqtt.processor.protocol.PubAckProcessor;
-import com.github.aseara.vmqtt.processor.protocol.PubCompProcessor;
-import com.github.aseara.vmqtt.processor.protocol.PubRecProcessor;
-import com.github.aseara.vmqtt.processor.protocol.PubRelProcessor;
-import com.github.aseara.vmqtt.processor.protocol.PublishProcessor;
-import com.github.aseara.vmqtt.processor.protocol.SubscribeProcessor;
-import com.github.aseara.vmqtt.processor.protocol.UnSubscribeProcessor;
-import com.github.aseara.vmqtt.retain.RetainMessageStorage;
+import com.github.aseara.vmqtt.processor.protocol.*;
+import com.github.aseara.vmqtt.retain.RetainStorage;
+import com.github.aseara.vmqtt.subscribe.SubscriptionTrie;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +28,7 @@ public class MqttVerticle extends AbstractVerticle {
 
     private final SubscriptionTrie subscriptionTrie;
 
-    private final RetainMessageStorage storage;
+    private final RetainStorage storage;
 
     private EndpointHandler endpointHandler;
 
@@ -43,10 +38,13 @@ public class MqttVerticle extends AbstractVerticle {
 
     private final List<MqttServer> mqttServers = new ArrayList<>();
 
+    private final Cache<String, MqttEndpoint> endpointCache =
+            CacheBuilder.newBuilder().weakValues().build();
+
     public MqttVerticle(MqttConfig config) {
         this.config = config;
         this.subscriptionTrie = new SubscriptionTrie();
-        this.storage = new RetainMessageStorage();
+        this.storage = new RetainStorage();
     }
 
     @Override
@@ -99,9 +97,10 @@ public class MqttVerticle extends AbstractVerticle {
         AuthService authService = new AuthService();
 
         EndpointHandler handler = new EndpointHandler();
+        handler.setMqttVerticle(this);
         handler.setConnectProcessor(new ConnectProcessor(authService));
         handler.setDisconnectProcessor(new DisconnectProcessor());
-        handler.setPublishProcessor(new PublishProcessor(storage, subscriptionTrie));
+        handler.setPublishProcessor(new PublishProcessor(this, storage, subscriptionTrie));
         handler.setPubAckProcessor(new PubAckProcessor());
         handler.setPubRecProcessor(new PubRecProcessor());
         handler.setPubRelProcessor(new PubRelProcessor());
@@ -112,6 +111,14 @@ public class MqttVerticle extends AbstractVerticle {
         handler.setCloseHandler(closeHandler);
 
         return handler;
+    }
+
+    public void cacheEndpoint(MqttEndpoint endpoint) {
+        endpointCache.put(endpoint.clientIdentifier(), endpoint);
+    }
+
+    public MqttEndpoint getEndpoint(String clientId) {
+        return endpointCache.getIfPresent(clientId);
     }
 
 }

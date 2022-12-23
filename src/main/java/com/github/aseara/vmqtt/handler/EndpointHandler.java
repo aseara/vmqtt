@@ -11,6 +11,7 @@ import com.github.aseara.vmqtt.processor.protocol.PubRelProcessor;
 import com.github.aseara.vmqtt.processor.protocol.PublishProcessor;
 import com.github.aseara.vmqtt.processor.protocol.SubscribeProcessor;
 import com.github.aseara.vmqtt.processor.protocol.UnSubscribeProcessor;
+import com.github.aseara.vmqtt.verticle.MqttVerticle;
 import io.vertx.core.Handler;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,8 @@ import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.CONNECTION_REFUS
 @Slf4j
 @Setter
 public class EndpointHandler implements Handler<MqttEndpoint> {
+
+    private MqttVerticle mqttVerticle;
 
     private ConnectProcessor connectProcessor;
 
@@ -56,6 +59,7 @@ public class EndpointHandler implements Handler<MqttEndpoint> {
             if (!endpoint.isConnected()) {
                 return;
             }
+            mqttVerticle.cacheEndpoint(endpoint);
             // add message process after connect been accepted
             endpoint.closeHandler(v -> closeHandler.handle(endpoint))
                     .publishHandler(m -> publishProcessor.processMessage(endpoint, m))

@@ -26,9 +26,10 @@ public class SubscribeProcessor extends RequestProcessor<MqttSubscribeMessage> {
 
     @Override
     public Future<MqttEndpoint> processInternal(MqttEndpoint endpoint, MqttSubscribeMessage subscribe) {
+        // TODO add session sub store
         List<MqttSubAckReasonCode> reasonCodes = new ArrayList<>();
         for (MqttTopicSubscription s: subscribe.topicSubscriptions()) {
-            Subscriber sub = Subscriber.of(endpoint, s.topicName(), s.qualityOfService());
+            Subscriber sub = Subscriber.of(endpoint.clientIdentifier(), s.topicName(), s.qualityOfService());
             subscriptionTrie.subscribe(sub);
             sendRetainMessage(sub);
             reasonCodes.add(MqttSubAckReasonCode.qosGranted(s.qualityOfService()));
@@ -46,6 +47,7 @@ public class SubscribeProcessor extends RequestProcessor<MqttSubscribeMessage> {
 
     private void sendRetainMessage(Subscriber sub) {
         // TODO send retain message
+        log.info("lookup retain message and send!");
         // need to be processed using block
         // Vertx.currentContext()
     }

@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class CloseHandler implements Handler<MqttEndpoint> {
+
     @Override
     public void handle(MqttEndpoint endpoint) {
         // TODO check endpoint status to clear resources

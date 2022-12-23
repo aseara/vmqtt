@@ -6,12 +6,12 @@ import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
 import com.github.aseara.vmqtt.mqtt.MqttMessageStatus;
 import com.github.aseara.vmqtt.mqtt.messages.MqttPublishMessage;
 import com.github.aseara.vmqtt.processor.RequestProcessor;
-import com.github.aseara.vmqtt.retain.RetainMessageStorage;
+import com.github.aseara.vmqtt.retain.RetainStorage;
 import com.github.aseara.vmqtt.subscribe.Subscriber;
 import com.github.aseara.vmqtt.subscribe.SubscriptionTrie;
+import com.github.aseara.vmqtt.verticle.MqttVerticle;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.core.Future;
-import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -23,11 +23,14 @@ import static com.github.aseara.vmqtt.common.MqttConstants.MESSAGE_STATUS_KEY;
 @Slf4j
 public class PublishProcessor extends RequestProcessor<MqttPublishMessage> {
 
-    private final RetainMessageStorage retainStorage;
+    private final MqttVerticle verticle;
+
+    private final RetainStorage retainStorage;
 
     private final SubscriptionTrie subscriptionTrie;
 
-    public PublishProcessor(RetainMessageStorage retainStorage, SubscriptionTrie subscriptionTrie) {
+    public PublishProcessor(MqttVerticle verticle, RetainStorage retainStorage, SubscriptionTrie subscriptionTrie) {
+        this.verticle = verticle;
         this.retainStorage = retainStorage;
         this.subscriptionTrie = subscriptionTrie;
     }
@@ -82,7 +85,7 @@ public class PublishProcessor extends RequestProcessor<MqttPublishMessage> {
         Buffer payload = Buffer.buffer(message.payload().getBytes());
 
         subscribers.forEach(sub -> {
-            MqttEndpoint subEndpoint = sub.getEndpoint().get();
+            MqttEndpoint subEndpoint = verticle.getEndpoint(sub.getClientId());
             if (subEndpoint != null) {
                 MqttQoS sendQos = message.qosLevel().value() > sub.getQos().value() ?
                         sub.getQos() : message.qosLevel();
