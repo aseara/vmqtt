@@ -14,8 +14,10 @@ import com.github.aseara.vmqtt.retain.RetainStorage;
 import com.github.aseara.vmqtt.subscribe.SubscriptionTrie;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
+import io.vertx.core.buffer.Buffer;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -28,7 +30,7 @@ public class MqttVerticle extends AbstractVerticle {
 
     private final SubscriptionTrie subscriptionTrie;
 
-    private final RetainStorage storage;
+    private final RetainStorage retainStorage;
 
     private EndpointHandler endpointHandler;
 
@@ -44,7 +46,7 @@ public class MqttVerticle extends AbstractVerticle {
     public MqttVerticle(MqttConfig config) {
         this.config = config;
         this.subscriptionTrie = new SubscriptionTrie();
-        this.storage = new RetainStorage();
+        this.retainStorage = new RetainStorage();
     }
 
     @Override
@@ -100,12 +102,12 @@ public class MqttVerticle extends AbstractVerticle {
         handler.setMqttVerticle(this);
         handler.setConnectProcessor(new ConnectProcessor(authService));
         handler.setDisconnectProcessor(new DisconnectProcessor());
-        handler.setPublishProcessor(new PublishProcessor(this, storage, subscriptionTrie));
+        handler.setPublishProcessor(new PublishProcessor(this, retainStorage, subscriptionTrie));
         handler.setPubAckProcessor(new PubAckProcessor());
         handler.setPubRecProcessor(new PubRecProcessor());
         handler.setPubRelProcessor(new PubRelProcessor());
         handler.setPubCompProcessor(new PubCompProcessor());
-        handler.setSubscribeProcessor(new SubscribeProcessor(subscriptionTrie));
+        handler.setSubscribeProcessor(new SubscribeProcessor(this, subscriptionTrie, retainStorage));
         handler.setUnSubscribeProcessor(new UnSubscribeProcessor(subscriptionTrie));
         handler.setExceptionHandler(exceptionHandler);
         handler.setCloseHandler(closeHandler);
@@ -119,6 +121,21 @@ public class MqttVerticle extends AbstractVerticle {
 
     public MqttEndpoint getEndpoint(String clientId) {
         return endpointCache.getIfPresent(clientId);
+    }
+
+    public void publish(MqttEndpoint sub, String topic, Buffer buf, MqttQoS qos, boolean dup, boolean retain) {
+        int messageId = sub.nextMessageId();
+        sub.publish(topic, buf, qos, dup, retain, messageId).onComplete(ar -> {
+            if (ar.succeeded()) {
+                log.info("send message success");
+            } else {
+                log.error("send message failed: ", ar.cause());
+            }
+        });
+        if (qos.value() > MqttQoS.AT_MOST_ONCE.value()) {
+            // TODO need store publish message to sub session
+            log.info("store message to sub session");
+        }
     }
 
 }

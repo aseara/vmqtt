@@ -1,6 +1,5 @@
 package com.github.aseara.vmqtt.subscribe;
 
-import com.github.aseara.vmqtt.common.TopicUtil;
 import io.vertx.core.VertxException;
 import lombok.Getter;
 import lombok.Setter;
@@ -26,14 +25,8 @@ public class SubscriptionTrie {
         String[] levels = sub.getLevels();
         for (int i = 0; i < levels.length; i++) {
             String level = levels[i];
-            if (level.length() > 1 && (level.indexOf('+') >= 0 || level.indexOf('#') >= 0)) {
-                throw new VertxException("subscribe topic " + sub.getSubTopic() + " is not valid!");
-            }
-            if ("#".equals(level) && i != levels.length - 1) {
-                throw new VertxException("subscribe topic " + sub.getSubTopic() + " is not valid!");
-            }
+            checkLevel(level, i == levels.length - 1, sub.getSubTopic());
             TrieNode child = curr.children.get(level);
-
             if (child == null) {
                 child = new TrieNode(level, curr);
                 curr.children.put(level, child);
@@ -44,7 +37,6 @@ public class SubscriptionTrie {
         if (curr.addSub(sub)) {
             count.incrementAndGet();
         }
-
     }
 
     /**
@@ -76,14 +68,22 @@ public class SubscriptionTrie {
 
     /**
      * 查找订阅
-     * @param topic 主题
+     * @param topicLevels topic split by /
      * @return 订阅列表
      */
-    public List<Subscriber> lookup(String topic) {
+    public List<Subscriber> lookup(String[] topicLevels) {
         List<Subscriber> subs = new ArrayList<>();
-        String[] levels = TopicUtil.splitTopic(topic);
-        lookup(root, levels, 0, subs);
+        lookup(root, topicLevels, 0, subs);
         return subs;
+    }
+
+    private void checkLevel(String level, boolean isLast, String topic) {
+        if (level.length() > 1 && (level.indexOf('+') >= 0 || level.indexOf('#') >= 0)) {
+            throw new VertxException("subscribe topic " + topic + " is not valid!");
+        }
+        if ("#".equals(level) && !isLast) {
+            throw new VertxException("subscribe topic " + topic + " is not valid!");
+        }
     }
 
     private void lookup(TrieNode curr, String[] levels, int index, List<Subscriber> subs) {

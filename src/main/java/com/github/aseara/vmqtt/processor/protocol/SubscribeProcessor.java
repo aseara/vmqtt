@@ -5,8 +5,11 @@ import com.github.aseara.vmqtt.mqtt.MqttTopicSubscription;
 import com.github.aseara.vmqtt.mqtt.messages.MqttSubscribeMessage;
 import com.github.aseara.vmqtt.mqtt.messages.codes.MqttSubAckReasonCode;
 import com.github.aseara.vmqtt.processor.RequestProcessor;
+import com.github.aseara.vmqtt.retain.RetainMessage;
+import com.github.aseara.vmqtt.retain.RetainStorage;
 import com.github.aseara.vmqtt.subscribe.Subscriber;
 import com.github.aseara.vmqtt.subscribe.SubscriptionTrie;
+import com.github.aseara.vmqtt.verticle.MqttVerticle;
 import io.netty.handler.codec.mqtt.MqttProperties;
 import io.vertx.core.Future;
 import lombok.extern.slf4j.Slf4j;
@@ -18,10 +21,16 @@ import java.util.List;
 @Slf4j
 public class SubscribeProcessor extends RequestProcessor<MqttSubscribeMessage> {
 
+    private final MqttVerticle verticle;
+
     private final SubscriptionTrie subscriptionTrie;
 
-    public SubscribeProcessor(SubscriptionTrie subscriptionTrie) {
+    private final RetainStorage retainStorage;
+
+    public SubscribeProcessor(MqttVerticle verticle, SubscriptionTrie subscriptionTrie, RetainStorage retainStorage) {
+        this.verticle = verticle;
         this.subscriptionTrie = subscriptionTrie;
+        this.retainStorage = retainStorage;
     }
 
     @Override
@@ -31,7 +40,7 @@ public class SubscribeProcessor extends RequestProcessor<MqttSubscribeMessage> {
         for (MqttTopicSubscription s: subscribe.topicSubscriptions()) {
             Subscriber sub = Subscriber.of(endpoint.clientIdentifier(), s.topicName(), s.qualityOfService());
             subscriptionTrie.subscribe(sub);
-            sendRetainMessage(sub);
+            sendRetainMessage(endpoint, sub);
             reasonCodes.add(MqttSubAckReasonCode.qosGranted(s.qualityOfService()));
             log.info("Subscription for " + s.topicName() + " with QoS " + s.qualityOfService());
         }
@@ -45,10 +54,11 @@ public class SubscribeProcessor extends RequestProcessor<MqttSubscribeMessage> {
         return log;
     }
 
-    private void sendRetainMessage(Subscriber sub) {
-        // TODO send retain message
+    private void sendRetainMessage(MqttEndpoint endpoint, Subscriber sub) {
         log.info("lookup retain message and send!");
-        // need to be processed using block
-        // Vertx.currentContext()
+        List<RetainMessage> msgs = retainStorage.lookup(sub.getLevels());
+        for (RetainMessage msg: msgs) {
+            verticle.publish(endpoint, msg.topic(), msg.payload(), msg.qos(), false, true);
+        }
     }
 }

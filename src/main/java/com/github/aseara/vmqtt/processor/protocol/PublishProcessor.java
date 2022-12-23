@@ -6,6 +6,7 @@ import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
 import com.github.aseara.vmqtt.mqtt.MqttMessageStatus;
 import com.github.aseara.vmqtt.mqtt.messages.MqttPublishMessage;
 import com.github.aseara.vmqtt.processor.RequestProcessor;
+import com.github.aseara.vmqtt.retain.RetainMessage;
 import com.github.aseara.vmqtt.retain.RetainStorage;
 import com.github.aseara.vmqtt.subscribe.Subscriber;
 import com.github.aseara.vmqtt.subscribe.SubscriptionTrie;
@@ -71,43 +72,30 @@ public class PublishProcessor extends RequestProcessor<MqttPublishMessage> {
     }
 
     private void retainAndDispatch(MqttEndpoint endpoint, MqttPublishMessage message) {
-        if (message.isRetain()) {
-            retainStorage.retain(message);
-        }
+
+        Buffer payload = Buffer.buffer(message.payload().getBytes());
 
         String topic = TopicUtil.trimTopic(message.topicName());
         if (!TopicUtil.checkMessageTopic(topic)) {
             throw new MqttEndpointException(endpoint, "invalid message topic: " + message.topicName());
         }
 
-        List<Subscriber> subscribers = subscriptionTrie.lookup(topic);
+        String[] topicLevels = TopicUtil.splitTopic(topic);
 
-        Buffer payload = Buffer.buffer(message.payload().getBytes());
+        if (message.isRetain()) {
+            RetainMessage retain = new RetainMessage(topic, topicLevels, payload, message.qosLevel());
+            retainStorage.retain(retain);
+        }
 
+        List<Subscriber> subscribers = subscriptionTrie.lookup(topicLevels);
         subscribers.forEach(sub -> {
             MqttEndpoint subEndpoint = verticle.getEndpoint(sub.getClientId());
-            if (subEndpoint != null) {
+            if (subEndpoint != null && subEndpoint.isConnected()) {
                 MqttQoS sendQos = message.qosLevel().value() > sub.getQos().value() ?
                         sub.getQos() : message.qosLevel();
-                dispatchMessage(subEndpoint, topic, payload, sendQos, message.isRetain());
+                verticle.publish(subEndpoint, topic, payload, sendQos, false, false);
             }
         });
-    }
-
-    private void dispatchMessage(MqttEndpoint sub, String topic, Buffer buf,
-                                 MqttQoS qos, boolean retain) {
-        int messageId = sub.nextMessageId();
-        sub.publish(topic, buf, qos, false, retain, messageId).onComplete(ar -> {
-            if (ar.succeeded()) {
-                log.info("send message success");
-            } else {
-                log.error("send message failed: ", ar.cause());
-            }
-        });
-        if (qos.value() > MqttQoS.AT_MOST_ONCE.value()) {
-            // TODO need store publish message to sub session
-            log.info("store message to sub session");
-        }
     }
 
 }

@@ -20,7 +20,10 @@ public class TopicUtil {
             sub = true;
             e = e - 1;
         }
-        return sub ? trimTopic.substring(s, e) : trimTopic;
+        if (sub) {
+            trimTopic = trimTopic.substring(s, e);
+        }
+        return trimTopic.replaceAll("//", "/");
     }
 
     public static boolean checkMessageTopic(String topic) {
