@@ -2,6 +2,11 @@ package com.github.aseara.vmqtt.common;
 
 public class TopicUtil {
 
+    /**
+     * trim topic name. This implementation is not consistent with the standard for the sake of simplicity.
+     * @param topic topic name
+     * @return trimmed topic name
+     */
     public static String trimTopic(String topic) {
         String trimTopic = topic.trim();
         int s = 0;

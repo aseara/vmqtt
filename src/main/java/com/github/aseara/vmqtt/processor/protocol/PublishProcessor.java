@@ -19,19 +19,15 @@ import org.slf4j.Logger;
 import java.util.List;
 
 import static com.github.aseara.vmqtt.common.MqttConstants.MESSAGE_STATUS_KEY;
-import static com.github.aseara.vmqtt.common.MqttConstants.RESEND_MESSAGE_KEY;
 
 @Slf4j
 public class PublishProcessor extends RequestProcessor<MqttPublishMessage> {
-
-    private final Vertx vertx;
 
     private final RetainMessageStorage retainStorage;
 
     private final SubscriptionTrie subscriptionTrie;
 
-    public PublishProcessor(Vertx vertx, RetainMessageStorage retainStorage, SubscriptionTrie subscriptionTrie) {
-        this.vertx = vertx;
+    public PublishProcessor(RetainMessageStorage retainStorage, SubscriptionTrie subscriptionTrie) {
         this.retainStorage = retainStorage;
         this.subscriptionTrie = subscriptionTrie;
     }
@@ -106,21 +102,8 @@ public class PublishProcessor extends RequestProcessor<MqttPublishMessage> {
             }
         });
         if (qos.value() > MqttQoS.AT_MOST_ONCE.value()) {
-            // set resend message timer
-            long timeId = vertx.setPeriodic(60, id -> {
-                if (sub.isClosed()) {
-                    vertx.cancelTimer(id);
-                    return;
-                }
-                sub.publish(topic, buf, qos, true, retain, messageId).onComplete(ar -> {
-                    if (ar.succeeded()) {
-                        log.info("send message success");
-                    } else {
-                        log.error("send message failed: ", ar.cause());
-                    }
-                });
-            });
-            sub.putContextInfo(RESEND_MESSAGE_KEY + messageId, timeId);
+            // TODO need store publish message to sub session
+            log.info("store message to sub session");
         }
     }
 
