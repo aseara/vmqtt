@@ -1,10 +1,10 @@
 package com.github.aseara.vmqtt.processor;
 
+import com.github.aseara.vmqtt.exception.MqttEndpointException;
 import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
-import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 
 public abstract class RequestProcessor<M> {
@@ -14,8 +14,10 @@ public abstract class RequestProcessor<M> {
         Future<MqttEndpoint> fut;
         try {
             fut = processInternal(endpoint, message);
+        } catch (MqttEndpointException e) {
+            fut = Future.failedFuture(e);
         } catch (Throwable t) {
-            fut = Future.failedFuture(t);
+            fut = Future.failedFuture(new MqttEndpointException(endpoint, "message process error:", t));
         }
         fut.onComplete(handler);
     }
