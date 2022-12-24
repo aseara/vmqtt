@@ -17,7 +17,7 @@ import io.vertx.core.buffer.Buffer;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 
-import java.util.List;
+import java.util.Collection;
 
 import static com.github.aseara.vmqtt.common.MqttConstants.MESSAGE_STATUS_KEY;
 
@@ -87,13 +87,13 @@ public class PublishProcessor extends RequestProcessor<MqttPublishMessage> {
             retainStorage.retain(retain);
         }
 
-        List<Subscriber> subscribers = subscriptionTrie.lookup(topicLevels);
+        Collection<Subscriber> subscribers = subscriptionTrie.lookup(topicLevels);
         subscribers.forEach(sub -> {
             MqttEndpoint subEndpoint = verticle.getEndpoint(sub.getClientId());
             if (subEndpoint != null && subEndpoint.isConnected()) {
                 MqttQoS sendQos = message.qosLevel().value() > sub.getQos().value() ?
                         sub.getQos() : message.qosLevel();
-                verticle.publish(subEndpoint, topic, payload, sendQos, false, false);
+                verticle.publish(subEndpoint, topic, payload, sendQos, false);
             }
         });
     }

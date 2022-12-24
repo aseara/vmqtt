@@ -42,7 +42,8 @@ public class SubscribeProcessor extends RequestProcessor<MqttSubscribeMessage> {
             subscriptionTrie.subscribe(sub);
             sendRetainMessage(endpoint, sub);
             reasonCodes.add(MqttSubAckReasonCode.qosGranted(s.qualityOfService()));
-            log.info("Subscription for " + s.topicName() + " with QoS " + s.qualityOfService());
+            log.info("client {} subscribe {} with qos {}, total sub now: {}",
+                    endpoint.clientIdentifier(), s.topicName(), s.qualityOfService(), subscriptionTrie.getCount());
         }
         // ack the subscriptions request
         endpoint.subscribeAcknowledge(subscribe.messageId(), reasonCodes, MqttProperties.NO_PROPERTIES);
@@ -58,7 +59,7 @@ public class SubscribeProcessor extends RequestProcessor<MqttSubscribeMessage> {
         log.info("lookup retain message and send!");
         List<RetainMessage> msgs = retainStorage.lookup(sub.getLevels());
         for (RetainMessage msg: msgs) {
-            verticle.publish(endpoint, msg.topic(), msg.payload(), msg.qos(), false, true);
+            verticle.publish(endpoint, msg.topic(), msg.payload(), msg.qos(), true);
         }
     }
 }

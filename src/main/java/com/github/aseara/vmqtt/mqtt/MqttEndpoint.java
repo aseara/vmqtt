@@ -15,9 +15,21 @@
  */
 package com.github.aseara.vmqtt.mqtt;
 
-import com.github.aseara.vmqtt.mqtt.messages.*;
-import com.github.aseara.vmqtt.mqtt.messages.codes.*;
-import io.netty.channel.ChannelPipeline;
+import com.github.aseara.vmqtt.mqtt.messages.MqttDisconnectMessage;
+import com.github.aseara.vmqtt.mqtt.messages.MqttPubAckMessage;
+import com.github.aseara.vmqtt.mqtt.messages.MqttPubCompMessage;
+import com.github.aseara.vmqtt.mqtt.messages.MqttPubRecMessage;
+import com.github.aseara.vmqtt.mqtt.messages.MqttPubRelMessage;
+import com.github.aseara.vmqtt.mqtt.messages.MqttPublishMessage;
+import com.github.aseara.vmqtt.mqtt.messages.MqttSubscribeMessage;
+import com.github.aseara.vmqtt.mqtt.messages.MqttUnsubscribeMessage;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttDisconnectReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubAckReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubCompReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubRecReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubRelReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttSubAckReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.codes.MqttUnsubAckReasonCode;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttProperties;
 import io.netty.handler.codec.mqtt.MqttQoS;
@@ -71,11 +83,6 @@ public interface MqttEndpoint {
    * @return the local address for this socket
    */
   SocketAddress localAddress();
-
-  /**
-   * @return pipeline of netty socket channel
-   */
-  ChannelPipeline channelPipeline();
 
   /**
    * @return true if this {@link MqttEndpoint} is encrypted via SSL/TLS.

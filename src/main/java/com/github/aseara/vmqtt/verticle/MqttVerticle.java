@@ -123,9 +123,9 @@ public class MqttVerticle extends AbstractVerticle {
         return endpointCache.getIfPresent(clientId);
     }
 
-    public void publish(MqttEndpoint sub, String topic, Buffer buf, MqttQoS qos, boolean dup, boolean retain) {
+    public void publish(MqttEndpoint sub, String topic, Buffer buf, MqttQoS qos, boolean retain) {
         int messageId = sub.nextMessageId();
-        sub.publish(topic, buf, qos, dup, retain, messageId).onComplete(ar -> {
+        sub.publish(topic, buf, qos, false, retain, messageId).onComplete(ar -> {
             if (ar.succeeded()) {
                 log.info("send message success");
             } else {
@@ -137,5 +137,7 @@ public class MqttVerticle extends AbstractVerticle {
             log.info("store message to sub session");
         }
     }
+
+
 
 }

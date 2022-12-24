@@ -5,23 +5,44 @@ import com.google.common.cache.CacheBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class RetainStorage {
 
     private final TrieNode root = new TrieNode(null, "");
 
+    private final Lock readLock;
+    private final Lock writeLock;
+
+    public RetainStorage() {
+        ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
+        readLock = rwLock.readLock();
+        writeLock = rwLock.writeLock();
+    }
+
     public void retain(RetainMessage message) {
-        if (message.payload().length() != 0) {
-            addRetain(message);
-        } else {
-            removeRetain(message);
+        writeLock.lock();
+        try {
+            if (message.payload().length() != 0) {
+                addRetain(message);
+            } else {
+                removeRetain(message);
+            }
+        } finally {
+            writeLock.unlock();
         }
     }
 
     public List<RetainMessage> lookup(String[] levels) {
-        List<RetainMessage> msgs = new ArrayList<>();
-        lookup(root, levels, 0, msgs);
-        return msgs;
+        readLock.lock();
+        try {
+            List<RetainMessage> msgs = new ArrayList<>();
+            lookup(root, levels, 0, msgs);
+            return msgs;
+        } finally {
+            readLock.unlock();
+        }
     }
 
     private void lookup(TrieNode curr, String[] levels, int index, List<RetainMessage> msgs) {

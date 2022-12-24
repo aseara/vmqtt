@@ -37,7 +37,6 @@ import com.github.aseara.vmqtt.mqtt.messages.codes.MqttSubAckReasonCode;
 import com.github.aseara.vmqtt.mqtt.messages.codes.MqttUnsubAckReasonCode;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.mqtt.MqttConnAckVariableHeader;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttFixedHeader;
@@ -863,11 +862,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
       this.checkClosed();
       return conn.localAddress();
     }
-  }
-
-  @Override
-  public ChannelPipeline channelPipeline() {
-    return null;
   }
 
   public SocketAddress remoteAddress() {
