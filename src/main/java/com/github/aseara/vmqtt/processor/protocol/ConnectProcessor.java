@@ -1,8 +1,14 @@
 package com.github.aseara.vmqtt.processor.protocol;
 
 import com.github.aseara.vmqtt.auth.AuthService;
+import com.github.aseara.vmqtt.exception.MqttEndpointException;
+import com.github.aseara.vmqtt.exception.MqttExceptionHandler;
 import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
+import com.github.aseara.vmqtt.mqtt.messages.MqttPublishMessage;
 import com.github.aseara.vmqtt.processor.RequestProcessor;
+import com.github.aseara.vmqtt.service.PubService;
+import com.github.aseara.vmqtt.subscribe.SubscriptionTrie;
+import com.github.aseara.vmqtt.verticle.MqttVerticle;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -12,19 +18,28 @@ import org.slf4j.Logger;
 
 import java.util.WeakHashMap;
 
-import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.CONNECTION_ACCEPTED;
-import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.CONNECTION_REFUSED_SERVER_UNAVAILABLE;
-import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.CONNECTION_REFUSED_UNACCEPTABLE_PROTOCOL_VERSION;
+import static com.github.aseara.vmqtt.common.MqttConstants.DISCONNECT_KEY;
+import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.*;
 
 @Slf4j
 public class ConnectProcessor extends RequestProcessor<MqttEndpoint> {
 
     private final AuthService authService;
 
+    private final PubService pubService;
+
+    private final SubscriptionTrie subTrie;
+
+    private final MqttExceptionHandler exceptionHandler;
+
     private final WeakHashMap<String, MqttEndpoint> endpointMap = new WeakHashMap<>();
 
-    public ConnectProcessor(AuthService authService) {
-        this.authService = authService;
+    public ConnectProcessor(MqttVerticle verticle) {
+        super(verticle);
+        this.authService = verticle.getAuthService();
+        this.pubService = verticle.getPubService();
+        this.subTrie = verticle.getSubscriptionTrie();
+        this.exceptionHandler = verticle.getExceptionHandler();
     }
 
     public final void processMessage(MqttEndpoint endpoint, Handler<AsyncResult<MqttEndpoint>> handler) {
@@ -54,10 +69,13 @@ public class ConnectProcessor extends RequestProcessor<MqttEndpoint> {
         // 4. session
         // 5. will
         return  auth(endpoint)
-                .onSuccess(r -> checkPrevious(endpoint))
-                .onSuccess(r -> storeWill(endpoint))
-                .onSuccess(r -> storeSession(endpoint))
-                .map(r -> accept(endpoint));
+                .onSuccess(r -> {
+                    checkPrevious(endpoint);
+                    storeWill(endpoint);
+                    boolean sessionPresent = processSession(endpoint);
+                    accept(endpoint, sessionPresent);
+                    afterConn(endpoint);
+                }).map(r -> endpoint);
     }
 
     private boolean versionValid(int mqttVersion) {
@@ -93,9 +111,41 @@ public class ConnectProcessor extends RequestProcessor<MqttEndpoint> {
         }
     }
 
-    private void storeSession(MqttEndpoint endpoint) {
+    private boolean processSession(MqttEndpoint endpoint) {
         log.info("MQTT client [" + endpoint.clientIdentifier() +
                 "] request to connect, clean session = " + endpoint.isCleanSession());
+
+        if (endpoint.isCleanSession()) {
+            sessionStore.clear(endpoint.clientIdentifier());
+        }
+
+        boolean create = sessionStore.create(endpoint.clientIdentifier());
+        if (create) {
+            return false;
+        }
+
+        vertx.executeBlocking(p -> {
+            String clientId = endpoint.clientIdentifier();
+
+            // 1. 订阅
+            sessionStore.getSubs(clientId).forEach(subTrie::subscribe);
+            // 2. unAckMsgs
+            for (MqttPublishMessage msg : sessionStore.getUnAckPubMsgs(clientId)) {
+                pubService.publishDup(endpoint, msg.messageId(), msg.topicName(), msg.payload(), msg.qosLevel());
+            }
+            // 3. unAckPubrel
+            sessionStore.getUnAckPubrelMsgs(clientId).forEach(endpoint::publishRelease);
+            // 4. offline msg
+            for (MqttPublishMessage msg : sessionStore.getAndClearOfflineMsgs(clientId)) {
+                pubService.publish(endpoint, msg.topicName(), msg.payload(), msg.qosLevel(), false);
+            }
+        }, r -> {
+            if (r.failed()) {
+                exceptionHandler.handle(new MqttEndpointException(endpoint,
+                        "session process of connect has some error", r.cause()));
+            }
+        });
+        return true;
     }
 
     private void storeWill(MqttEndpoint endpoint) {
@@ -107,14 +157,17 @@ public class ConnectProcessor extends RequestProcessor<MqttEndpoint> {
         }
     }
 
-    private MqttEndpoint accept(MqttEndpoint endpoint) {
-        endpoint.accept();
+    private void accept(MqttEndpoint endpoint, boolean sessionPresent) {
+        endpoint.accept(sessionPresent);
         log.info("[CONNECT] ->{},client= {}, connect to this mqtt server success",
                 endpoint.remoteAddress(), endpoint.clientIdentifier());
         endpointMap.put(endpoint.clientIdentifier(), endpoint);
+    }
+
+    private void afterConn(MqttEndpoint endpoint) {
         // TODO redis record connection to current mqtt server
         // TODO gauge record
-        return endpoint;
+        sessionStore.removeContextInfo(endpoint.clientIdentifier(), DISCONNECT_KEY);
     }
 
 }

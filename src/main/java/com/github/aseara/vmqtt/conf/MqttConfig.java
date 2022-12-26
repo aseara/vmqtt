@@ -21,6 +21,8 @@ public class MqttConfig {
         private int maxClientIdLength = DEFAULT_MAX_CLIENT_ID_LENGTH * 2;
 
         private boolean logNetty;
+
+        private long sessionExpireSeconds = 5 * 60;
     }
 
 }

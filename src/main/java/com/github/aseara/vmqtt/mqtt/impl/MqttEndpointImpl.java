@@ -20,37 +20,15 @@ import com.github.aseara.vmqtt.mqtt.MqttAuth;
 import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
 import com.github.aseara.vmqtt.mqtt.MqttTopicSubscription;
 import com.github.aseara.vmqtt.mqtt.MqttWill;
-import com.github.aseara.vmqtt.mqtt.messages.MqttDisconnectMessage;
 import com.github.aseara.vmqtt.mqtt.messages.MqttPubAckMessage;
-import com.github.aseara.vmqtt.mqtt.messages.MqttPubCompMessage;
-import com.github.aseara.vmqtt.mqtt.messages.MqttPubRecMessage;
-import com.github.aseara.vmqtt.mqtt.messages.MqttPubRelMessage;
 import com.github.aseara.vmqtt.mqtt.messages.MqttPublishMessage;
 import com.github.aseara.vmqtt.mqtt.messages.MqttSubscribeMessage;
 import com.github.aseara.vmqtt.mqtt.messages.MqttUnsubscribeMessage;
-import com.github.aseara.vmqtt.mqtt.messages.codes.MqttDisconnectReasonCode;
-import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubAckReasonCode;
-import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubCompReasonCode;
-import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubRecReasonCode;
-import com.github.aseara.vmqtt.mqtt.messages.codes.MqttPubRelReasonCode;
-import com.github.aseara.vmqtt.mqtt.messages.codes.MqttSubAckReasonCode;
-import com.github.aseara.vmqtt.mqtt.messages.codes.MqttUnsubAckReasonCode;
+import com.github.aseara.vmqtt.mqtt.messages.*;
+import com.github.aseara.vmqtt.mqtt.messages.codes.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.mqtt.MqttConnAckVariableHeader;
-import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
-import io.netty.handler.codec.mqtt.MqttFixedHeader;
-import io.netty.handler.codec.mqtt.MqttMessageFactory;
-import io.netty.handler.codec.mqtt.MqttMessageIdAndPropertiesVariableHeader;
-import io.netty.handler.codec.mqtt.MqttMessageType;
-import io.netty.handler.codec.mqtt.MqttProperties;
-import io.netty.handler.codec.mqtt.MqttPubReplyMessageVariableHeader;
-import io.netty.handler.codec.mqtt.MqttPublishVariableHeader;
-import io.netty.handler.codec.mqtt.MqttQoS;
-import io.netty.handler.codec.mqtt.MqttReasonCodeAndPropertiesVariableHeader;
-import io.netty.handler.codec.mqtt.MqttSubAckPayload;
-import io.netty.handler.codec.mqtt.MqttUnsubAckPayload;
-import io.netty.handler.codec.mqtt.MqttVersion;
+import io.netty.handler.codec.mqtt.*;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -62,8 +40,6 @@ import io.vertx.core.net.impl.NetSocketInternal;
 import javax.net.ssl.SSLSession;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -71,8 +47,6 @@ import java.util.stream.Collectors;
  * Represents an MQTT endpoint for point-to-point communication with the remote MQTT client
  */
 public class MqttEndpointImpl implements MqttEndpoint {
-
-  private final ConcurrentMap<String, Object> contextMap = new ConcurrentHashMap<>();
 
   private static final int MAX_MESSAGE_ID = 65535;
 
@@ -215,21 +189,6 @@ public class MqttEndpointImpl implements MqttEndpoint {
 
   public boolean isAutoKeepAlive() {
     return this.isAutoKeepAlive;
-  }
-
-  @Override
-  public void putContextInfo(String key, Object info) {
-    contextMap.put(key, info);
-  }
-
-  @Override
-  public Object getContextInfo(String key) {
-    return contextMap.get(key);
-  }
-
-  @Override
-  public boolean removeContextInfo(String key) {
-    return contextMap.remove(key) != null;
   }
 
   public boolean isConnected() {

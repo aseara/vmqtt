@@ -6,47 +6,52 @@ import com.github.aseara.vmqtt.conf.MqttConfig;
 import com.github.aseara.vmqtt.exception.MqttExceptionHandler;
 import com.github.aseara.vmqtt.handler.CloseHandler;
 import com.github.aseara.vmqtt.handler.EndpointHandler;
-import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
 import com.github.aseara.vmqtt.mqtt.MqttServer;
 import com.github.aseara.vmqtt.mqtt.MqttServerOptions;
 import com.github.aseara.vmqtt.processor.protocol.*;
 import com.github.aseara.vmqtt.retain.RetainStorage;
+import com.github.aseara.vmqtt.service.PubService;
+import com.github.aseara.vmqtt.session.SessionStore;
 import com.github.aseara.vmqtt.subscribe.SubscriptionTrie;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
-import io.vertx.core.buffer.Buffer;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
+@Getter
 public class MqttVerticle extends AbstractVerticle {
 
     private final MqttConfig config;
 
     private final SubscriptionTrie subscriptionTrie;
 
+    private final SessionStore sessionStore;
+
     private final RetainStorage retainStorage;
 
-    private EndpointHandler endpointHandler;
+    private final AuthService authService = new AuthService();
 
     private final MqttExceptionHandler exceptionHandler = new MqttExceptionHandler();
 
-    private final CloseHandler closeHandler = new CloseHandler();
+    private EndpointHandler endpointHandler;
+
+    private final CloseHandler closeHandler;
+
+    private final PubService pubService;
 
     private final List<MqttServer> mqttServers = new ArrayList<>();
-
-    private final Cache<String, MqttEndpoint> endpointCache =
-            CacheBuilder.newBuilder().weakValues().build();
 
     public MqttVerticle(MqttConfig config) {
         this.config = config;
         this.subscriptionTrie = new SubscriptionTrie();
         this.retainStorage = new RetainStorage();
+        this.sessionStore = new SessionStore(config.getMqtt().getSessionExpireSeconds());
+        this.pubService = new PubService(this);
+        this.closeHandler = new CloseHandler(this);
     }
 
     @Override
@@ -96,46 +101,21 @@ public class MqttVerticle extends AbstractVerticle {
     }
 
     private EndpointHandler createHandler() {
-        AuthService authService = new AuthService();
-
         EndpointHandler handler = new EndpointHandler();
-        handler.setMqttVerticle(this);
-        handler.setConnectProcessor(new ConnectProcessor(authService));
-        handler.setDisconnectProcessor(new DisconnectProcessor());
-        handler.setPublishProcessor(new PublishProcessor(this, retainStorage, subscriptionTrie));
-        handler.setPubAckProcessor(new PubAckProcessor());
-        handler.setPubRecProcessor(new PubRecProcessor());
-        handler.setPubRelProcessor(new PubRelProcessor());
-        handler.setPubCompProcessor(new PubCompProcessor());
-        handler.setSubscribeProcessor(new SubscribeProcessor(this, subscriptionTrie, retainStorage));
-        handler.setUnSubscribeProcessor(new UnSubscribeProcessor(subscriptionTrie));
+        handler.setPubService(pubService);
+        handler.setConnectProcessor(new ConnectProcessor(this));
+        handler.setDisconnectProcessor(new DisconnectProcessor(this));
+        handler.setPublishProcessor(new PublishProcessor(this));
+        handler.setPubAckProcessor(new PubAckProcessor(this));
+        handler.setPubRecProcessor(new PubRecProcessor(this));
+        handler.setPubRelProcessor(new PubRelProcessor(this));
+        handler.setPubCompProcessor(new PubCompProcessor(this));
+        handler.setSubscribeProcessor(new SubscribeProcessor(this));
+        handler.setUnSubscribeProcessor(new UnSubscribeProcessor(this));
         handler.setExceptionHandler(exceptionHandler);
         handler.setCloseHandler(closeHandler);
 
         return handler;
-    }
-
-    public void cacheEndpoint(MqttEndpoint endpoint) {
-        endpointCache.put(endpoint.clientIdentifier(), endpoint);
-    }
-
-    public MqttEndpoint getEndpoint(String clientId) {
-        return endpointCache.getIfPresent(clientId);
-    }
-
-    public void publish(MqttEndpoint sub, String topic, Buffer buf, MqttQoS qos, boolean retain) {
-        int messageId = sub.nextMessageId();
-        sub.publish(topic, buf, qos, false, retain, messageId).onComplete(ar -> {
-            if (ar.succeeded()) {
-                log.info("send message success");
-            } else {
-                log.error("send message failed: ", ar.cause());
-            }
-        });
-        if (qos.value() > MqttQoS.AT_MOST_ONCE.value()) {
-            // TODO need store publish message to sub session
-            log.info("store message to sub session");
-        }
     }
 
 

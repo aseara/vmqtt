@@ -2,16 +2,8 @@ package com.github.aseara.vmqtt.handler;
 
 import com.github.aseara.vmqtt.exception.MqttExceptionHandler;
 import com.github.aseara.vmqtt.mqtt.MqttEndpoint;
-import com.github.aseara.vmqtt.processor.protocol.ConnectProcessor;
-import com.github.aseara.vmqtt.processor.protocol.DisconnectProcessor;
-import com.github.aseara.vmqtt.processor.protocol.PubAckProcessor;
-import com.github.aseara.vmqtt.processor.protocol.PubCompProcessor;
-import com.github.aseara.vmqtt.processor.protocol.PubRecProcessor;
-import com.github.aseara.vmqtt.processor.protocol.PubRelProcessor;
-import com.github.aseara.vmqtt.processor.protocol.PublishProcessor;
-import com.github.aseara.vmqtt.processor.protocol.SubscribeProcessor;
-import com.github.aseara.vmqtt.processor.protocol.UnSubscribeProcessor;
-import com.github.aseara.vmqtt.verticle.MqttVerticle;
+import com.github.aseara.vmqtt.processor.protocol.*;
+import com.github.aseara.vmqtt.service.PubService;
 import io.vertx.core.Handler;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +14,7 @@ import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.CONNECTION_REFUS
 @Setter
 public class EndpointHandler implements Handler<MqttEndpoint> {
 
-    private MqttVerticle mqttVerticle;
+    private PubService pubService;
 
     private ConnectProcessor connectProcessor;
 
@@ -59,7 +51,7 @@ public class EndpointHandler implements Handler<MqttEndpoint> {
             if (!endpoint.isConnected()) {
                 return;
             }
-            mqttVerticle.cacheEndpoint(endpoint);
+            pubService.cacheEndpoint(endpoint);
             // add message process after connect been accepted
             endpoint.closeHandler(v -> closeHandler.handle(endpoint))
                     .publishHandler(m -> publishProcessor.processMessage(endpoint, m))

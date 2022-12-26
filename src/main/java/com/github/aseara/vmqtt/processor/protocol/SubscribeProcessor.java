@@ -7,6 +7,8 @@ import com.github.aseara.vmqtt.mqtt.messages.codes.MqttSubAckReasonCode;
 import com.github.aseara.vmqtt.processor.RequestProcessor;
 import com.github.aseara.vmqtt.retain.RetainMessage;
 import com.github.aseara.vmqtt.retain.RetainStorage;
+import com.github.aseara.vmqtt.service.PubService;
+import com.github.aseara.vmqtt.session.SessionStore;
 import com.github.aseara.vmqtt.subscribe.Subscriber;
 import com.github.aseara.vmqtt.subscribe.SubscriptionTrie;
 import com.github.aseara.vmqtt.verticle.MqttVerticle;
@@ -21,16 +23,20 @@ import java.util.List;
 @Slf4j
 public class SubscribeProcessor extends RequestProcessor<MqttSubscribeMessage> {
 
-    private final MqttVerticle verticle;
+    private final SubscriptionTrie subTrie;
 
-    private final SubscriptionTrie subscriptionTrie;
+    private final PubService pubService;
 
     private final RetainStorage retainStorage;
 
-    public SubscribeProcessor(MqttVerticle verticle, SubscriptionTrie subscriptionTrie, RetainStorage retainStorage) {
-        this.verticle = verticle;
-        this.subscriptionTrie = subscriptionTrie;
-        this.retainStorage = retainStorage;
+    private final SessionStore sessionStore;
+
+    public SubscribeProcessor(MqttVerticle verticle) {
+        super(verticle);
+        this.subTrie = verticle.getSubscriptionTrie();
+        this.pubService = verticle.getPubService();
+        this.retainStorage = verticle.getRetainStorage();
+        this.sessionStore = verticle.getSessionStore();
     }
 
     @Override
@@ -39,11 +45,12 @@ public class SubscribeProcessor extends RequestProcessor<MqttSubscribeMessage> {
         List<MqttSubAckReasonCode> reasonCodes = new ArrayList<>();
         for (MqttTopicSubscription s: subscribe.topicSubscriptions()) {
             Subscriber sub = Subscriber.of(endpoint.clientIdentifier(), s.topicName(), s.qualityOfService());
-            subscriptionTrie.subscribe(sub);
+            subTrie.subscribe(sub);
+            sessionStore.addSub(endpoint.clientIdentifier(), sub);
             sendRetainMessage(endpoint, sub);
             reasonCodes.add(MqttSubAckReasonCode.qosGranted(s.qualityOfService()));
             log.info("client {} subscribe {} with qos {}, total sub now: {}",
-                    endpoint.clientIdentifier(), s.topicName(), s.qualityOfService(), subscriptionTrie.getCount());
+                    endpoint.clientIdentifier(), s.topicName(), s.qualityOfService(), subTrie.getCount());
         }
         // ack the subscriptions request
         endpoint.subscribeAcknowledge(subscribe.messageId(), reasonCodes, MqttProperties.NO_PROPERTIES);
@@ -59,7 +66,7 @@ public class SubscribeProcessor extends RequestProcessor<MqttSubscribeMessage> {
         log.info("lookup retain message and send!");
         List<RetainMessage> msgs = retainStorage.lookup(sub.getLevels());
         for (RetainMessage msg: msgs) {
-            verticle.publish(endpoint, msg.topic(), msg.payload(), msg.qos(), true);
+            pubService.publish(endpoint, msg.topic(), msg.payload(), msg.qos(), true);
         }
     }
 }
